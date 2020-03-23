@@ -18,7 +18,7 @@ setup(
     # Needed for dependencies
     install_requires=['tensorflow-gpu==1.14', 'Keras==2.2.4', 'keras-utils==1.0.13'],
     # *strongly* suggested for sharing
-    version='0.1',
+    version='0.2',
     # The license can be anything you like
     license='none',
     description='Automated 3D segmentation powered by a 2D convolutional neural network',

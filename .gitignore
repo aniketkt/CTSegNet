@@ -1,0 +1,4 @@
+# .gitignore
+
+__pycache__
+__seg_utils.py
