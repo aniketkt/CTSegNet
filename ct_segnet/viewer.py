@@ -14,25 +14,31 @@ import sys
 import os
 import numpy as np
 import pandas as pd
-import re
-import ast
-import h5py
-import cv2
-import time
-import tensorflow as tf
-import keras
-from keras.models import load_model
-
+import matplotlib.pyplot as plt
 from ct_segnet.data_utils import patch_maker as PM
 from ct_segnet.model_utils.losses import custom_objects_dict
-
 from ImageStackPy import ImageProcessing as IP
 
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
 
 
+def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None):
+    # ax    :   three axes
+    # vol   : 3D numpy array
+    # ds    : DataFile object
+    
+    if vol is not None:
+        imgs = [vol.take(vol.shape[i]//2, axis = i) for i in range(3)]
+    elif ds is not None:
+        imgs = [ds.read_slice(axis = i, slice_idx = ds.d_shape[i]//2) for i in range(3)]
 
+    if ax is None:
+        fig, ax = plt.subplots(1,3)
+    for i in range(3):
+        ax[i].imshow(imgs[i], cmap = cmap, alpha = alpha)
+    
+    return ax
 
 
 def edge_plot(img, seg_img, ax, color = [0,255,0]):
