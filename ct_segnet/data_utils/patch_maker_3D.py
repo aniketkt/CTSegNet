@@ -13,8 +13,19 @@ from scipy.ndimage import affine_transform
 
 
 
+def apply_Affine(vol, M, T = None, order = 1):
+    
+    # vol    : 3D numpy array
+    # M       : 3x3 array as the transform matrix
+    # T      : 1x3 array as the translation matrix. None if no translation
+    
+    return affine_transform(vol, M, T = T if T is not None else np.zeros(3), order = order)
+
 def resize_volume(vol, new_shape, order = None):
 
+    # vol        : 3D numpy array
+    # new_shape  : new shape of array
+    # order      : order for spline interpolation
     old_shape = vol.shape
     s = np.asarray([float(old_shape[i])/float(new_shape[i]) for i in range(3)])
     
