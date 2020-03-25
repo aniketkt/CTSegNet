@@ -26,6 +26,10 @@ from tkinter import *
 from tkinter import filedialog as fd
 from matplotlib.patches import Rectangle
 
+import functools
+from multiprocessing import cpu_count, Pool
+from skimage.io import imread
+
 
 DEBUG_MODE = True
 
@@ -197,8 +201,6 @@ class DataFile():
         for _i, _size in enumerate(self.slice_size):
             _message("Slice size along %i: %4.2f MB"%(_i, 1000.0*_size), self.VERBOSITY > -1)
         
-
-
     def est_chunking(self): # Determine the chunk shape for hdf5 file, optimized for slicing along all 3 axes
         # max_slice_size : in GB
         
@@ -212,8 +214,6 @@ class DataFile():
             _message("Estimated Chunk shape: %s"%str(self.chunk_shape), self.VERBOSITY > 1)
         return
 
-
-
     def read_slice(self, axis = None, slice_idx = None):
         
         img, s = self.read_chunk(axis = axis, slice_start = slice_idx, slice_end = slice_idx + 1)
@@ -222,19 +222,16 @@ class DataFile():
     def read_data(self, slice_3D = (slice(None,None),)*3):
         
         if self.tiff_mode:
-            raise ValueError("Not supported for tiff data.")
+            ch = np.asarray(read_tiffseq(self.fname, s = slice_3D[0]))
+            ch = ch[:, slice_3D[1], slice_3D[2]]
         
         with h5py.File(self.fname, 'r') as hf:
             
             _message("Reading hdf5: %s, Z: %s, Y: %s, X: %s"%(self.fname.split('/')[-1], str(slice_3D[0]), str(slice_3D[1]), str(slice_3D[2])), self.VERBOSITY > 1)    
             ch = np.asarray(hf[self.data_tag][slice_3D[0],slice_3D[1],slice_3D[2]])
         return ch
-        
-                
-
 
     def read_chunk(self, axis = None, slice_start = None, chunk_shape = None, max_GB = 10.0, slice_end = "", skip_fac = None):
-    
         
         if slice_end == "": # Do this to determine slice_end based on a max_GB value as RAM limit
             if (chunk_shape is None) & (not self.tiff_mode):
@@ -251,7 +248,8 @@ class DataFile():
         if not self.tiff_mode: # hdf5 mode
             with h5py.File(self.fname, 'r') as hf:
                 
-                _message("Reading hdf5: %s, axis %i,  slice %i to %i, with chunk_shape: %s"%(self.fname.split('/')[-1], axis, slice_start, slice_end, chunk_shape), self.VERBOSITY > 1)    
+                _message("Reading hdf5: %s, axis %i,  %s, with chunk_shape: %s"%(self.fname.split('/')[-1], \
+                                                                                 axis, s, chunk_shape), self.VERBOSITY > 1)    
                 if axis == 0:
                     ch = np.asarray(hf[self.data_tag][s,:,:])
                 elif axis == 1:
@@ -263,15 +261,15 @@ class DataFile():
         
         else: # in tiff mode
             if axis != 0: raise ValueError("TIFF data format does not support multi-axial slicing.")
-            if skip_fac is not None: raise ValueError("TIFF data format does not support step slicing")
 
-            _message("Reading tiff: %s, axis %i,  slice %i to %i, chunk_shape: %s"%(self.fname.split('/')[-1], axis, slice_start, slice_end, chunk_shape), self.VERBOSITY > 1)    
-            ch = np.asarray(IP.get_stack(userfilepath = self.fname, fromto = (s.start, s.stop-1)))
+            _message("Reading tiff: %s, axis %i,  %s, chunk_shape: %s"%(self.fname.split('/')[-1],\
+                                                                        axis, s, chunk_shape), self.VERBOSITY > 1)    
+            ch = np.asarray(read_tiffseq(self.fname, s = s))
             return ch, s
 
-    def read_full(self, skip_fac = None):
+    def read_full(self):
         
-        ch, s = self.read_chunk(axis = 0, slice_start = 0, slice_end = self.d_shape[0], skip_fac = skip_fac)
+        ch, s = self.read_chunk(axis = 0, slice_start = 0, slice_end = self.d_shape[0], skip_fac = None)
         return ch
     
     def write_full(self, ch):
@@ -294,7 +292,6 @@ class DataFile():
         
         
     def write_chunk(self, ch, axis = None, s = None):
-    
     
         if not self.tiff_mode:
                 
@@ -377,11 +374,67 @@ def get_domain_extent(d, min_size = 512):
     
     return crop_Z, crop_Y, crop_X
 
+def read_tiffseq(userfilepath = '', procs = None, s = None):
 
+    # s    : s is either a slice(start, stop, step) or a list of indices to be read
+    t0 = time.time()
+    if not userfilepath:
+        raise ValueError("ERROR: File path is required.")
+        return []
 
+    if procs == None:
+        procs = cpu_count()
+        
+    ImgFileList = sorted(glob.glob(userfilepath+'/*.tif'))
+    
+    if not ImgFileList: ImgFileList = sorted(glob.glob(userfilepath+'/*.tiff'))
+    
+    if s != None:
+        if type(s) == slice:
+            ImgFileList = ImgFileList[s]
+        elif type(s) == list:
+            ImgFileList = [ImgFileList[i] for i in s]
+        else:
+            raise ValueError("s input not recognized.")
+    
+    Im_Stack = Parallelize(ImgFileList, imread, procs = procs)
 
+    t1 = time.time()
+    _message("\tDone in %f seconds."%(t1-t0))
+    return Im_Stack
 
+def Parallelize(ListIn, f, procs = -1, **kwargs):
+    
+    # This function packages the "starmap" function in multiprocessing for Python 3.3+ to allow multiple iterable inputs for the parallelized function.
+    # ListIn: any python list such that each item in the list is a tuple of non-keyworded arguments passable to the function 'f' to be parallelized.
+    # f: function to be parallelized. Signature must not contain any other non-keyworded arguments other than those passed as iterables.
+    # Example:
+    # def multiply(x, y, factor = 1.0):
+    #   return factor*x*y
+    # X = np.linspace(0,1,1000)
+    # Y = np.linspace(1,2,1000)
+    # XY = [ (x, Y[i]) for i, x in enumerate(X)] # List of tuples
+    # Z = IP.Parallelize_MultiIn(XY, multiply, factor = 3.0, procs = 8)
+    # Create as many positional arguments as required, but remember all must be packed into a list of tuples.
+    
+    if type(ListIn[0]) != tuple:
+        ListIn = [(ListIn[i],) for i in range(len(ListIn))]
+    
+    reduced_argfunc = functools.partial(f, **kwargs)
+    
+    if procs == -1:
+        opt_procs = int(np.interp(len(ListIn), [1,100,500,1000,3000,5000,10000] ,[1,2,4,8,12,36,48]))
+        procs = min(opt_procs, cpu_count())
 
+    if procs == 1:
+        OutList = [reduced_argfunc(*ListIn[iS]) for iS in range(len(ListIn))]
+    else:
+        p = Pool(processes = procs)
+        OutList = p.starmap(reduced_argfunc, ListIn)
+        p.close()
+        p.join()
+    
+    return OutList
    
 
 if __name__ == "__main__":
