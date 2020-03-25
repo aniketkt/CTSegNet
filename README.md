@@ -8,3 +8,4 @@ OR
 
 pip install --upgrade .
 
+# CTSegNet
