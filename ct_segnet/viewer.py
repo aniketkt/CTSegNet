@@ -23,23 +23,29 @@ from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
 
 
-def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None):
+def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None, idxs = None):
     # ax    :   three axes
     # vol   : 3D numpy array
     # ds    : DataFile object
-    
-    if vol is not None:
-        imgs = [vol.take(vol.shape[i]//2, axis = i) for i in range(3)]
-    elif ds is not None:
-        imgs = [ds.read_slice(axis = i, slice_idx = ds.d_shape[i]//2) for i in range(3)]
 
     if ax is None:
         fig, ax = plt.subplots(1,3)
+    imgs = get_orthoplanes(ds = ds, vol = vol, idxs = idxs)
     for i in range(3):
         ax[i].imshow(imgs[i], cmap = cmap, alpha = alpha)
     
     return ax
 
+def get_orthoplanes(ds = None, vol = None, idxs = None):
+    
+    if vol is not None:
+        if idxs is None: idxs = [vol.shape[i]//2 for i in range(3)]
+        imgs = [vol.take(idxs[i], axis = i) for i in range(3)]
+    elif ds is not None:
+        if idxs is None: idxs = [ds.d_shape[i]//2 for i in range(3)]
+        imgs = [ds.read_slice(axis = i, slice_idx = idxs[i]) for i in range(3)]
+    
+    return imgs    
 
 def edge_plot(img, seg_img, ax, color = [0,255,0]):
     # img: grayscale image of any shape (Y,X)

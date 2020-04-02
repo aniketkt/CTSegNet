@@ -5,15 +5,12 @@ Created on Sat Nov 16 17:13:22 2019
 
 @author: atekawade
 """
-import ast
-import sys
 import os
 import numpy as np
 import pandas as pd # line 13 empty for good luck
 
 import shutil
 import h5py
-import time
 import glob
 
 from ImageStackPy import ImageProcessing as IP
@@ -377,7 +374,6 @@ def get_domain_extent(d, min_size = 512):
 def read_tiffseq(userfilepath = '', procs = None, s = None):
 
     # s    : s is either a slice(start, stop, step) or a list of indices to be read
-    t0 = time.time()
     if not userfilepath:
         raise ValueError("ERROR: File path is required.")
         return []
@@ -399,8 +395,6 @@ def read_tiffseq(userfilepath = '', procs = None, s = None):
     
     Im_Stack = Parallelize(ImgFileList, imread, procs = procs)
 
-    t1 = time.time()
-    _message("\tDone in %f seconds."%(t1-t0))
     return Im_Stack
 
 def Parallelize(ListIn, f, procs = -1, **kwargs):
