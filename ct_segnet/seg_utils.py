@@ -31,18 +31,18 @@ from ImageStackPy import ImageProcessing as IP
 VERBOSE = False
 
 
-import logging
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-sys.stderr = stderr
-import absl.logging
-logging.root.removeHandler(absl.logging._absl_handler)
-absl.logging._warn_preinit_stderr = False
-logger = tf.get_logger()
-logger.disabled = True
-logger.setLevel(logging.FATAL)
-graph = tf.get_default_graph()
+# import logging
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# stderr = sys.stderr
+# sys.stderr = open(os.devnull, 'w')
+# sys.stderr = stderr
+# import absl.logging
+# logging.root.removeHandler(absl.logging._absl_handler)
+# absl.logging._warn_preinit_stderr = False
+# logger = tf.get_logger()
+# logger.disabled = True
+# logger.setLevel(logging.FATAL)
+# graph = tf.get_default_graph()
 
 def message(_str):
     
