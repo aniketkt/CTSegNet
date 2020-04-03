@@ -16,9 +16,8 @@ setup(
     # Needed to actually package something
     packages= ['ct_segnet', 'ct_segnet.data_utils', 'ct_segnet.model_utils'],
     # Needed for dependencies
-    install_requires=['tensorflow-gpu==1.14',
-                      'Keras==2.2.4',
-                      'keras-utils==1.0.13'],
+    install_requires=['tensorflow-gpu==2.0',
+			'numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy']
     version='1.2',
     license='BSD',
     description='Automated 3D segmentation powered by 2D convolutional neural networks',
