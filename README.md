@@ -12,7 +12,7 @@ Some unique features include:
  - A patching algorithm that allows you to segment arbitrarily sized data with a 2D CNN of any input size.
  - Select only parts of your data for segmentation or test models on slices of your data, with a few lines of code.
 
-This is version 0.2. It requires tensorflow 1.14 and Keras 2.2.4. A future version will support tensorflow 2.0.
+This is version 1.2. It requires tensorflow 1.14 and Keras 2.2.4. To install the package with tensorflow 2.0, use branch tf-2.
 
 
 Notes for installation. Use pip install with the setup.py file. You will also need ImageStackPy package, which is available at github.com/aniketkt/ImageStackPy.
