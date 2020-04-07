@@ -3,20 +3,14 @@
 """
 Created on Fri Apr 26 14:12:21 2019
 
+Easily define U-net-like architectures using Keras layers
+
 @author: atekawade
 """
 
 import numpy as np
-import matplotlib.pyplot as plt
-from ImageStackPy import ImageProcessing as IP
-from ImageStackPy import Img_Viewer as VIEW
-import h5py
-import os
-import sys
-from keras.backend import tf
-import keras, keras.layers as L, keras.backend as K
-import keras_utils
-from sklearn.feature_extraction import image as feim
+from tensorflow import keras
+from tensorflow.keras import layers as L
 from . import losses
 
 def insert_activation(tensor_in, activation):

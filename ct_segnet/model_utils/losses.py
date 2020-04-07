@@ -7,23 +7,17 @@ Created on Wed Jun 12 14:14:34 2019
 """
 
 
-import numpy as np
-import matplotlib.pyplot as plt
-from ImageStackPy import ImageProcessing as IP
-from ImageStackPy import Img_Viewer as VIEW
-import h5py
-import os
-import sys
-from keras.backend import tf
-import keras, keras.layers as L, keras.backend as K
-import keras_utils
-from sklearn.feature_extraction import image as feim
+import tensorflow as tf
+from tensorflow.keras import backend as K
+
 
 eps = 1e-12
 alpha = 0.75
 gamma = 2.0
 
 def IoU(y_true, y_pred):
+    
+    # Define intersection over union accuracy
     
     y_pred = K.round(y_pred)
     intersection = K.sum(y_true*y_pred)
@@ -35,6 +29,7 @@ def IoU(y_true, y_pred):
 
 def acc_zeros(y_true, y_pred):
     
+    # Define accuracy of zeros
     y_pred = K.round(y_pred)
     #true_positives = K.sum(y_true*y_pred)
     #false_positives = K.sum((1-y_true)*y_pred)
@@ -47,6 +42,7 @@ def acc_zeros(y_true, y_pred):
 
 def acc_ones(y_true, y_pred):
     
+    # Define accuracy of ones
     y_pred = K.round(y_pred)
     true_positives = K.sum(y_true*y_pred)
     false_negatives = K.sum(y_true*(1-y_pred))
@@ -54,25 +50,8 @@ def acc_ones(y_true, y_pred):
     return r
 
 
-#
-#def focal_loss(gamma=2., alpha=.25):
-#    def loss_func(y_true, y_pred):
-#        pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
-#        pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
-#        return -K.sum(alpha * K.pow(1. - pt_1, gamma) * K.log(pt_1))-K.sum((1-alpha) * K.pow( pt_0, gamma) * K.log(1. - pt_0))
-#    return loss_func
-
-
-
-def focal_loss(y_true, y_pred):
-
-    pt_1, pt_0 = binary_lossmap(y_true, y_pred)
-    loss_map = -alpha*K.log(pt_1 + eps)*K.pow(1. - pt_1,gamma) - (1-alpha)*K.log(1. - pt_0 + eps)*K.pow(pt_0,gamma)
-    return tf.reduce_mean(loss_map)
-
-
 def binary_lossmap(y_true, y_pred):
-    
+    # y_true, y_pred are tensors of shape (batch_size, img_h, img_w, n_channels)
     pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
     pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
     return pt_1, pt_0
@@ -81,6 +60,12 @@ def my_binary_crossentropy(y_true, y_pred):
 
     pt_1, pt_0 = binary_lossmap(y_true, y_pred)
     loss_map = -K.log(pt_1 + eps)-K.log(1. - pt_0 + eps)
+    return tf.reduce_mean(loss_map)
+
+def focal_loss(y_true, y_pred):
+
+    pt_1, pt_0 = binary_lossmap(y_true, y_pred)
+    loss_map = -alpha*K.log(pt_1 + eps)*K.pow(1. - pt_1,gamma) - (1-alpha)*K.log(1. - pt_0 + eps)*K.pow(pt_0,gamma)
     return tf.reduce_mean(loss_map)
 
 
@@ -108,9 +93,6 @@ def standardize(imgs):
     
     return tf.map_fn(stdize_img, imgs)
     
-
-
-
 
 objects = [IoU, acc_zeros, acc_ones, focal_loss, my_binary_crossentropy, weighted_crossentropy, standardize, stdize_img]
 

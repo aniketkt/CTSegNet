@@ -9,20 +9,25 @@ import numpy as np
 import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
-from ImageStackPy import ImageProcessing as IP
-from ImageStackPy import Img_Viewer as VIEW
 import h5py
 import os
 import sys
-import keras
+from tensorflow import keras
 from IPython.display import clear_output
 import random
 import pandas as pd
 from multiprocessing import cpu_count
-
+from ct_segnet.data_utils.data_io import Parallelize
 
 class Logger(keras.callbacks.Callback):
-
+    """An instance of Logger can be passed to keras model.fit to log stuff at epochs
+    # Arguments
+        model_paths    : dict, with keys = ["name", "history", "file"]
+        x_val, y_val   : test or validation data for calculating model accuracy
+        df_prev        : pandas.DataFrame, if retraining, pass previous epochs data
+        N              : int, autosave frequency
+        
+    """
     def __init__(self, x_val, y_val, model_paths, N, df_prev = None):
         self.x_val = x_val
         self.y_val = y_val
@@ -164,7 +169,8 @@ def save_datasnaps(x_train, y_train, model_history):
 
 
 def ROC(thresh, y_true = None, y_pred = None):
-    
+    """Receiver Operating Characteristics (ROC) curve
+    """
     y_p = np.zeros_like(y_pred)
     y_p[y_pred > thresh] = 1
     y_true = np.copy(y_true)
@@ -186,28 +192,21 @@ def ROC(thresh, y_true = None, y_pred = None):
 
 
 def calc_jac_acc(y_true, y_pred):
-    
+    """Jaccard accuracy or Intersection over Union
+    """
     y_pred = np.round(np.copy(y_pred))
     jac_acc = (np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) - np.sum(y_pred*y_true) + 1)
     return jac_acc
 
-
-
-#def calc_jac_acc(y_true, y_pred):
-#    # Pixel-wise accuracy
-#    y_pred = np.round(np.copy(y_pred))
-#    jac_acc = (np.sum(y_pred*y_true) + np.sum((1-y_pred)*(1-y_true))) / np.size(y_true)
-#    return jac_acc
-
-
 def fidelity(y_true, y_pred, tolerance = 0.95):
-    
+    """Fidelity is number of images with IoU > tolerance
+    """
 
     XY = [(y_true[ii], y_pred[ii]) for ii in range(y_true.shape[0])]
     del y_true
     del y_pred
     
-    jac_acc = np.asarray(IP.Parallelize(XY, calc_jac_acc, procs = cpu_count()))
+    jac_acc = np.asarray(Parallelize(XY, calc_jac_acc, procs = cpu_count()))
     
     mean_IoU = np.mean(jac_acc)
 
@@ -221,6 +220,8 @@ def fidelity(y_true, y_pred, tolerance = 0.95):
     
 
 def save_results(x_val, y_val, y_pred, model_results, segmenter):
+    """Save some results on test images into a folder in the path to model repo
+    """
     
     if not os.path.exists(os.path.join(model_results,"data_snaps")):
         os.makedirs(os.path.join(model_results,"data_snaps"))
@@ -243,31 +244,6 @@ def save_results(x_val, y_val, y_pred, model_results, segmenter):
             plt.close()
 
     return
-
-
-def save_results_2(x_val, y_val, y_pred, model_results, jac_acc):
-    
-    if not os.path.exists(os.path.join(model_results,"data_snaps")):
-        os.makedirs(os.path.join(model_results,"data_snaps"))
-        
-    for ii in range(x_val.shape[0]):
-            
-            fig, ax = plt.subplots(1,3, figsize = (9,3))
-            ax[0].axis('off')
-            ax[0].imshow(x_val[ii], cmap = 'gray')
-            ax[1].axis('off')
-            ax[1].imshow(y_val[ii])
-            ax[2].axis('off')
-            ax[2].imshow(y_pred[ii])
-            
-            
-            fig.suptitle("IMG_MEAN: %.2f, JAC_ACC: %.2f"%(np.mean(x_val[ii]),jac_acc[ii]))
-            plt.savefig(os.path.join(model_results,"data_snaps",'snap_%05d.png'%ii))
-            plt.close()
-
-    return
-
-
 
 
 
