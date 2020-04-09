@@ -240,6 +240,12 @@ class DataFile():
             ch = np.asarray(hf[self.data_tag][slice_3D[0],slice_3D[1],slice_3D[2]])
         return ch
 
+    def read_sequence(self, idxs):
+        """Read a list of indices idxs along axis 0
+        """
+        with h5py.File(self.fname, 'r') as hf:
+            return np.asarray(hf[self.data_tag][idxs,...])
+    
     def read_chunk(self, axis = None, slice_start = None, chunk_shape = None, max_GB = 10.0, slice_end = "", skip_fac = None):
         """Read a chunk of data along a given axis.
         axis         : int in (0,1,2), axis > 0 is not supported for tiff series
@@ -283,11 +289,11 @@ class DataFile():
             ch = np.asarray(read_tiffseq(self.fname, s = s))
             return ch, s
 
-    def read_full(self):
+    def read_full(self, skip_fac = None):
         """Read the full dataset
         """
         
-        ch, s = self.read_chunk(axis = 0, slice_start = 0, slice_end = self.d_shape[0], skip_fac = None)
+        ch, s = self.read_chunk(axis = 0, slice_start = 0, slice_end = self.d_shape[0], skip_fac = skip_fac)
         return ch
     
     def write_full(self, ch):

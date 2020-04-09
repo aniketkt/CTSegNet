@@ -11,6 +11,7 @@ import tensorflow as tf
 from tensorflow.keras import backend as K
 
 
+# Parameters for weighted cross-entropy and focal loss - alpha is higher than 0.5 to emphasize loss in "ones" or metal pixels.
 eps = 1e-12
 alpha = 0.75
 gamma = 2.0
