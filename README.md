@@ -25,7 +25,7 @@ ct_segnet
 ├── train_utils.py  
 └── viewer.py  
 
-CTSegNet also provides a command-line interface with config files. To download the full package with executables, sample model files and config files, clone the master branch and install locally as:  
+CTSegNet also provides a command-line interface with config files. To download the entire package with executables, sample model files and config files, clone the master branch and install locally as:  
 ```
 pip install setup.py
 ```   
@@ -59,21 +59,20 @@ Here is a sample architecture that you can build using the model_utils sub-modul
 </p>
 
 ### What is unique about CTSegNet?
-<p align="justify">While Unet-based segmentation is now commonplace, it is primarily limited to 2D data since 3D convolutional layers require prohibitively large GPU memory during training. Our approach efficiently exploits 2D fCNNs for 3D segmentation. You can generate multiple 3D masks by slicing along any axis, and choose a patching strategy based on the resolution-to-context trade-off in your CT data. For an fCNN with input/output images sized 512<sup>2</sup>, you can make patches in several ways. This a slice drawn from a scan of a gasoline injector along the transverse plane.
+<p align="justify">While Unet-based segmentation is now commonplace, it is primarily limited to 2D data since 3D convolutional layers require prohibitively large GPU memory during training. Our approach efficiently exploits 2D fCNNs for 3D segmentation. You can generate multiple 3D masks by slicing along any axis, and choose a patching strategy based on the resolution-to-context trade-off in your CT data. For an fCNN with input/output images sized 512<sup>2</sup>, you can make patches in several ways. This a slice drawn from a scan of a gasoline injector along the transverse plane.</p>  
 
 <p align="center">
   <img width="800" src="assets/patch_maker.png">
 </p>  
 
-An ensemble vote from several 3D segmentations maps yields near voxel accuracy in many cases, where thresholding just won't work. Here's an example of a band-like artifact from restricted field-of-view in a CT scan (sagittal plane is shown).</p>
+<p align="justify">An ensemble vote from several 3D segmentations maps yields near voxel accuracy in many cases, where thresholding just won't work. Here's an example of a band-like artifact from restricted field-of-view in a CT scan (sagittal plane is shown).</p>  
 
 <p align="center">
   <img width="800" src="assets/artifact.png">
 </p>
 
-### More nice things 
- - Rapid, memory efficient slicing using hdf5 format so you can visualize and segment 100GB+ datasets from your workstation.
- - Segment only parts of your data or test models on slices of your data, with a few lines of code.
+<p align="justify">The data_utils.data_io module contains the DataFile class, which enables fast and memory-efficient slicing using hdf5 format so you can visualize and segment 100GB+ datasets from your workstation. With this, you can segment only parts of your data or test models on slices of your data, with a few lines of code. Tiff format is also supported but with limited functionality.</p>  
+
 
 ### Tell me more
 Read our paper!  
