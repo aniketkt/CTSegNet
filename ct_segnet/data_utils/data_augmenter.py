@@ -7,14 +7,18 @@ Created on Mon May 20 17:42:56 2019
 """
 
 import numpy as np
-from ImageStackPy import ImageProcessing as IP
 from multiprocessing import cpu_count
 import matplotlib as mpl
+from ct_segnet.data_utils.data_io import Parallelize
 
 import matplotlib.pyplot as plt
 from sklearn.mixture import GaussianMixture as GMM
 
-
+def _normalize(img, amin = 0.0, amax = 1.0):
+    alow = img.min()
+    ahigh = img.max()
+    img = np.nan_to_num(amin + (amax-amin)*(img - alow)/(ahigh - alow))
+    return img
 
 def run_augmenter(x_img, y_img, to_do = ["rotate", "flip", "range shift"]):
     
@@ -32,7 +36,7 @@ def run_augmenter(x_img, y_img, to_do = ["rotate", "flip", "range shift"]):
     del x_img
     del y_img
     
-    XY = np.asarray(IP.Parallelize(XY, f, to_do = to_do, procs = cpu_count()))
+    XY = np.asarray(Parallelize(XY, f, to_do = to_do, procs = cpu_count()))
     
     x_img = XY[:,0,:,:]
     y_img = XY[:,1,:,:]
@@ -49,13 +53,13 @@ def random_range(x_img, y_img):
     while ((amax > 1.0) or (amax < 0.0) or np.abs(amax - amin) < 0.25):
         amax = np.random.normal(0.5, 0.25, 1)[0]
         
-    x_img = IP.normalize(x_img, amin = amin, amax = amax)[0]
+    x_img = _normalize(x_img, amin = amin, amax = amax)
     
     if amax > amin:
         amax, amin = 1, 0
     else:
         amax, amin = 0, 1
-    y_img = IP.normalize(y_img, amin = amin, amax = amax)[0]
+    y_img = _normalize(y_img, amin = amin, amax = amax)
         
     return x_img, y_img 
 
@@ -66,7 +70,7 @@ def intensity_flip(x_img, y_img):
     if np.random.randint(2,size = 1)[0]:
     
         amin, amax = np.min(x_img), np.max(x_img)
-        x_img = IP.normalize(x_img, amin = amax, amax = amin)[0]
+        x_img = _normalize(x_img, amin = amax, amax = amin)
         new_y_img = np.zeros_like(y_img)
         new_y_img[y_img == 0] = 1
         return x_img, new_y_img
@@ -92,10 +96,6 @@ def random_rotate(x_img, y_img):
     
     return np.rot90(x_img, k = nrot), np.rot90(y_img, k = nrot)
     
-    
-
-
-
 
 def randomize(x_img, y_img, to_do = None):
 
@@ -112,13 +112,12 @@ def randomize(x_img, y_img, to_do = None):
 
 def remove_blanks(x_train, y_train, cutoff = 0.3, return_idx = False):
 
-    
     ystd = np.std(y_train, axis = (1,2))
     fig, ax = plt.subplots(1,1)
-    ax.plot(np.sort(ystd))
-    ax.plot(np.full(np.shape(ystd), np.max(ystd)*cutoff), label = 'cutoff')
-    ax.legend()
-    plt.savefig("data_variability_total.png")
+    #ax.plot(np.sort(ystd))
+    #ax.plot(np.full(np.shape(ystd), np.max(ystd)*cutoff), label = 'cutoff')
+    #ax.legend()
+    #plt.savefig("data_variability_total.png")
     
     if cutoff > 0.0:
         idx = np.where(ystd > np.max(ystd)*cutoff)
@@ -148,11 +147,8 @@ def _radial_mask(size, rad, inverted = False):
     
     return mask
 
-
-
 def apply_circularmask(img, crop_size = None):
     
-
     if img.ndim == 3:
         ix, iy = 1,2
     elif img.ndim == 2:
@@ -195,12 +191,13 @@ def run_add_noise(X, degree = 2.0, max_points = 1e8):
     print("\tEstimating current noise levels...")
     plt.figure()
     whatever = plt.hist(data_in.reshape(-1), bins = 700)
-    plt.savefig('histogram_addnoise.png')
+#    plt.savefig('histogram_addnoise.png')
     plt.close()
     model = GMM(2).fit(data_in.reshape(-1,1)) # model size is 2 because binary segmentation
     dist = 0.5*np.abs(model.means_[1][0] - model.means_[0][0])
     print("\tCorrupting images to degree %2.f"%degree)
-    X = IP.Parallelize(IP.toStack(X), _add_noise, degree = degree, dist = dist)
+    
+    X = Parallelize(X, _add_noise, degree = degree, dist = dist)
     
     return np.asarray(X)
 

@@ -4,28 +4,49 @@ Created on Sat Jun  8 00:59:58 2019
 
 @author: atekawade
 """
-
+import os
 import numpy as np
 import matplotlib as mpl
 #mpl.use('Agg')
 import matplotlib.pyplot as plt
-from ImageStackPy import ImageProcessing as IP
-from ImageStackPy import Img_Viewer as VIEW
 import h5py
-import os
 import sys
-import keras
+from tensorflow import keras
 from IPython.display import clear_output
 import random
 import pandas as pd
 from multiprocessing import cpu_count
+from ct_segnet.data_utils.data_io import Parallelize
 
+def _norm(y):
+    if (y.max() != 1.0) | (y.min() != 0.0):
+        y = (y - np.min(y)) / (np.max(y) - np.min(y))
+    return y.astype(np.uint8)
+
+def data_generator(X, Y, batch_size):
+    """Generator that yields randomly sampled data pairs of size batch_size.
+    X, Y are DataFile object pairs of train / test / validation data.
+    """
+    while True:
+        idxs = sorted(random.sample(range(X.d_shape[0]), batch_size))
+        x = X.read_sequence(idxs)
+        y = Y.read_sequence(idxs)
+        y = _norm(y)
+
+        yield (x[...,np.newaxis], y[...,np.newaxis])
 
 class Logger(keras.callbacks.Callback):
-
-    def __init__(self, x_val, y_val, model_paths, N, df_prev = None):
-        self.x_val = x_val
-        self.y_val = y_val
+    """An instance of Logger can be passed to keras model.fit to log stuff at epochs
+    # Arguments
+        model_paths    : dict, with keys = ["name", "history", "file"]
+        Xtest, Ytest   : DataFile instances of test data pairs for calculating model accuracy
+        df_prev        : pandas.DataFrame, if retraining, pass previous epochs data
+        N              : int, autosave frequency
+        n_test         : int, number of test image pairs to be sampled every epoch
+    """
+    def __init__(self, Xtest, Ytest, model_paths, N, df_prev = None, n_test = None):
+        
+        self.test_dg = data_generator(Xtest, Ytest, n_test)
         self.N = N
         self.df_prev = df_prev
         self.model_name = model_paths['name']
@@ -65,7 +86,8 @@ class Logger(keras.callbacks.Callback):
         self.x.append(self.i)
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
-        evaluation = self.model.evaluate(x = self.x_val[...,np.newaxis], y = self.y_val[...,np.newaxis])
+        x_test, y_test = next(self.test_dg)
+        evaluation = self.model.evaluate(x = x_test, y = y_test, verbose = 0)
         if type(evaluation) is list:
             if len(evaluation) == 4:
                 self.test_losses.append(evaluation[0])
@@ -93,7 +115,7 @@ class Logger(keras.callbacks.Callback):
         self.ax[1].plot(self.x, self.metric, '--k', label = "IoU")
         self.ax[1].legend(loc = 'upper right')
         
-        plt.show()
+#         plt.show()
         plt.savefig(os.path.join(self.model_history, 'Loss_plot_' + self.model_name + '.png'))
         plt.close()     
         
@@ -129,34 +151,25 @@ class Logger(keras.callbacks.Callback):
         
         
 
-def save_datasnaps(x_train, y_train, model_history):
+def save_datasnaps(dg, model_history, n_imgs = 20):
     
     if not os.path.exists(os.path.join(model_history,"data_snaps")):
         os.makedirs(os.path.join(model_history,"data_snaps"))
         
         
     # Load and save random train data images
-    for ii in range(100):
-        jj = random.randrange(y_train.shape[0])
+    x, y = next(dg)
+    x, y = x[...,0], y[...,0]
+    for jj in x.shape[0]:
         fig, ax = plt.subplots(1,2, figsize = (6,3))
         ax[0].axis('off')
-        ax[0].imshow(y_train[jj])
+        ax[0].imshow(y[jj])
         ax[1].axis('off')
-        ax[1].imshow(x_train[jj])
-        fig.suptitle("MIN: %.2f, MAX: %.2f, MEAN: %.2f"%(np.min(x_train[jj]), np.max(x_train[jj]), np.mean(x_train[jj])))
+        ax[1].imshow(x[jj])
+        fig.suptitle("MIN: %.2f, MAX: %.2f, MEAN: %.2f"%(np.min(x[jj]), np.max(x[jj]), np.mean(x[jj])))
         plt.savefig(os.path.join(model_history,"data_snaps",'randomdata_%5d.png'%jj))
         plt.close()
 
-    for ii in range(100,200):
-            
-            fig, ax = plt.subplots(1,2, figsize = (6,3))
-            ax[0].axis('off')
-            ax[0].imshow(y_train[ii])
-            ax[1].axis('off')
-            ax[1].imshow(x_train[ii])
-            fig.suptitle("MIN: %.2f, MAX: %.2f, MEAN: %.2f"%(np.min(x_train[ii]), np.max(x_train[ii]), np.mean(x_train[ii])))
-            plt.savefig(os.path.join(model_history,"data_snaps",'serialdata_%5d.png'%ii))
-            plt.close()
 
     return
 
@@ -164,7 +177,8 @@ def save_datasnaps(x_train, y_train, model_history):
 
 
 def ROC(thresh, y_true = None, y_pred = None):
-    
+    """Receiver Operating Characteristics (ROC) curve
+    """
     y_p = np.zeros_like(y_pred)
     y_p[y_pred > thresh] = 1
     y_true = np.copy(y_true)
@@ -186,28 +200,21 @@ def ROC(thresh, y_true = None, y_pred = None):
 
 
 def calc_jac_acc(y_true, y_pred):
-    
+    """Jaccard accuracy or Intersection over Union
+    """
     y_pred = np.round(np.copy(y_pred))
     jac_acc = (np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) - np.sum(y_pred*y_true) + 1)
     return jac_acc
 
-
-
-#def calc_jac_acc(y_true, y_pred):
-#    # Pixel-wise accuracy
-#    y_pred = np.round(np.copy(y_pred))
-#    jac_acc = (np.sum(y_pred*y_true) + np.sum((1-y_pred)*(1-y_true))) / np.size(y_true)
-#    return jac_acc
-
-
 def fidelity(y_true, y_pred, tolerance = 0.95):
-    
+    """Fidelity is number of images with IoU > tolerance
+    """
 
     XY = [(y_true[ii], y_pred[ii]) for ii in range(y_true.shape[0])]
     del y_true
     del y_pred
     
-    jac_acc = np.asarray(IP.Parallelize(XY, calc_jac_acc, procs = cpu_count()))
+    jac_acc = np.asarray(Parallelize(XY, calc_jac_acc, procs = cpu_count()))
     
     mean_IoU = np.mean(jac_acc)
 
@@ -220,54 +227,36 @@ def fidelity(y_true, y_pred, tolerance = 0.95):
     
     
 
-def save_results(x_val, y_val, y_pred, model_results, segmenter):
+def save_results(dg, model_results, segmenter):
+    """Save some results on test images into a folder in the path to model repo
+    """
+    x_test, y_test = next(dg)
+    y_pred = segmenter.predict(x_test)
+    y_pred = np.round(y_pred)
+    
+    x_test, y_test, y_pred = x_test[...,0], y_test[...,0], y_pred[...,0]
     
     if not os.path.exists(os.path.join(model_results,"data_snaps")):
         os.makedirs(os.path.join(model_results,"data_snaps"))
-        
-    for ii in range(x_val.shape[0]):
+    
+    for ii in x_test.shape[0]:
             
             fig, ax = plt.subplots(1,3, figsize = (9,3))
             ax[0].axis('off')
-            ax[0].imshow(x_val[ii])
+            ax[0].imshow(x_test[ii])
             ax[1].axis('off')
-            ax[1].imshow(y_val[ii])
+            ax[1].imshow(y_test[ii])
             ax[2].axis('off')
             ax[2].imshow(y_pred[ii])
             
-            #jac_acc = (np.sum(y_pred[ii]*y_val[ii]) + 1) / (np.sum(y_pred[ii]) + np.sum(y_val[ii]) - np.sum(y_pred[ii]*y_val[ii]) + 1)
-            test_loss, jac_acc, acc_zeros, acc_ones = segmenter.evaluate(x = x_val[ii][np.newaxis,...,np.newaxis], y = y_val[ii][np.newaxis,...,np.newaxis])
+            #jac_acc = (np.sum(y_pred[ii]*y_test[ii]) + 1) / (np.sum(y_pred[ii]) + np.sum(y_test[ii]) - np.sum(y_pred[ii]*y_test[ii]) + 1)
+            test_loss, jac_acc, acc_zeros, acc_ones = segmenter.evaluate(x = x_test[ii][np.newaxis,...,np.newaxis], y = y_test[ii][np.newaxis,...,np.newaxis], verbose = 0)
             
-            fig.suptitle("IMG_MEAN: %.2f, JAC_ACC: %.2f, LOSS: %.2f"%(np.mean(x_val[ii]),jac_acc, test_loss))
+            fig.suptitle("IMG_MEAN: %.2f, JAC_ACC: %.2f, LOSS: %.2f"%(np.mean(x_test[ii]),jac_acc, test_loss))
             plt.savefig(os.path.join(model_results,"data_snaps",'snap_%05d.png'%ii))
             plt.close()
 
     return
-
-
-def save_results_2(x_val, y_val, y_pred, model_results, jac_acc):
-    
-    if not os.path.exists(os.path.join(model_results,"data_snaps")):
-        os.makedirs(os.path.join(model_results,"data_snaps"))
-        
-    for ii in range(x_val.shape[0]):
-            
-            fig, ax = plt.subplots(1,3, figsize = (9,3))
-            ax[0].axis('off')
-            ax[0].imshow(x_val[ii], cmap = 'gray')
-            ax[1].axis('off')
-            ax[1].imshow(y_val[ii])
-            ax[2].axis('off')
-            ax[2].imshow(y_pred[ii])
-            
-            
-            fig.suptitle("IMG_MEAN: %.2f, JAC_ACC: %.2f"%(np.mean(x_val[ii]),jac_acc[ii]))
-            plt.savefig(os.path.join(model_results,"data_snaps",'snap_%05d.png'%ii))
-            plt.close()
-
-    return
-
-
 
 
 

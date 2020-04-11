@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Nov 16 17:13:22 2019
-
 @author: atekawade
+
 """
 import os
 import numpy as np
@@ -12,9 +12,6 @@ import pandas as pd # line 13 empty for good luck
 import shutil
 import h5py
 import glob
-
-from ImageStackPy import ImageProcessing as IP
-from ImageStackPy import Img_Viewer as VIEW
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
@@ -26,6 +23,9 @@ from matplotlib.patches import Rectangle
 import functools
 from multiprocessing import cpu_count, Pool
 from skimage.io import imread
+from tifffile import imsave
+from configargparse import ArgumentTypeError
+import ast
 
 
 DEBUG_MODE = True
@@ -84,13 +84,24 @@ def browse_savepath(_msg):
 def handle_YN(_str):
     
     _inp = input(_str)
-    if _inp in ("yes", "Yes", "Y", "y"):
+    return str_to_bool(_inp)
+
+
+def str_to_bool(_inp):
+    _inp = str(_inp)
+    if _inp in ("yes", "Yes", "Y", "y", "True", "TRUE", "true"):
         return True
-    elif _inp in ("no", "No", "N", "n"):
+    elif _inp in ("no", "No", "N", "n", "False", "FALSE", "false"):
         return False
     else:
-        raise InputError("Input not understood")
+        raise ArgumentTypeError("Input not understood")
     return
+
+def n_patches_type(s):
+    s = s.split('x')
+    s = ','.join(s)
+    return ast.literal_eval(s)
+
 
 class InputError(Exception):
     def __init__(self, message):
@@ -98,15 +109,30 @@ class InputError(Exception):
 
 
 class DataFile():
-    def __init__(self, fname, data_tag = None, tiff = False, chunked_slice_size = None, d_shape = None, d_type = None, VERBOSITY = 1):
+    def __init__(self, fname, data_tag = None, tiff = False,\
+                 chunk_shape = None, chunk_size = None, chunked_slice_size = None,\
+                 d_shape = None, d_type = None, VERBOSITY = 1):
+        """An instance of a DataFile class is a 3D dataset in a tiff sequence or hdf5 file.
+        Methods are provided to read chunks and slices.
+        fname     : path to hdf5 filename or folder containing tiff sequence
+        tiff      : bool, True if fname is path to tiff sequence, else False
+        data_tag  : str, dataset name / path in hdf5 file. None if tiff sequence
+        VERBOSITY : int 0 - print nothing, 1 - important stuff, 2 - print everything
+        optionals (required for non-existent dataset only) -->
+        d_shape   : tuple, shape of dataset 
+        d_type    : np.<dtype>
+        chunk_size, chunked_slice_size : float, size in GB for making chunks with hyperslab dimensions in hdf5. Either chunk_shape > chunk_size > chunked_slice_size can be input. If two or more are provided, this order is used to select one.
+        
+        """
         self.fname = fname
         self.data_tag = data_tag # for hdf5 only
-        self.VERBOSITY = VERBOSITY # 0 - print nothing, 1 - only when datafile is define, 2 - print everything
+        self.VERBOSITY = VERBOSITY
         
         self.tiff_mode = tiff
         self.exists = os.path.exists(self.fname)
         self.chunked_slice_size = chunked_slice_size
-
+        self.chunk_size = chunk_size
+        self.chunk_shape = chunk_shape
 
         if (d_type is not None) & (d_shape is not None):
             self.d_type = d_type # overwrite previously read stats            
@@ -166,7 +192,7 @@ class DataFile():
             img_path = glob.glob(self.fname+'/*.tif')
             if not img_path: img_path = glob.glob(self.fname+'/*.tiff')
             img_z = len(img_path)
-            img = IP.get_image(userfilepath = img_path[0])
+            img = imread(img_path[0])
             self.d_shape = (img_z,) + img.shape
             self.d_type = img.dtype
             self.chunk_shape = None # no such attribute for tiff stacks
@@ -187,28 +213,44 @@ class DataFile():
             raise ValueError("Data type %s is not supported."%self.d_type)
 
         self.slice_size = (np.prod(self.d_shape[1:])*fac/(1e9), np.prod(self.d_shape[::2])*fac/(1e9), np.prod(self.d_shape[:-1])*fac/(1e9))
-
+        self._bytes_per_voxel = fac
+        self.d_size_GB = fac*np.prod(self.d_shape)/1e9
         return
 
 
     def show_stats(self):
-
+        """print dataset shape and slice-wise size
+        """
         _message("Dataset shape: %s"%(str(self.d_shape)), self.VERBOSITY > -1)
+        _message("Dataset size: %.2f GB"%self.d_size_GB, self.VERBOSITY > -1)
         if not self.tiff_mode: _message("Chunk shape: %s"%(str(self.chunk_shape)), self.VERBOSITY > -1)
         for _i, _size in enumerate(self.slice_size):
             _message("Slice size along %i: %4.2f MB"%(_i, 1000.0*_size), self.VERBOSITY > -1)
         
     def est_chunking(self): # Determine the chunk shape for hdf5 file, optimized for slicing along all 3 axes
-        # max_slice_size : in GB
+        """Determines the chunks attribute in hdf5 file based on one of two methods:
+        chunked_slice_size : in GB - size of a chunk of some slices along an axis
+        chunk_size         : in GB - size of a hyperslab of shape proportional to data shape
+        """
         
         if self.tiff_mode:
             self.chunked_shape = None
         else:
-            if self.chunked_slice_size is None:
-                self.chunk_shape = None
-            else:
+            if self.chunk_shape is not None:
+                return # allow user to define chunk_shape
+            if self.chunk_size is not None:
+                fac = np.cbrt((self.chunk_size) / (self.d_size_GB))
+                self.chunk_shape = tuple([int(self.d_shape[i]*fac) for i in range(3)])
+                return
+            if self.chunked_slice_size is not None:
+                if self.chunked_slice_size > (self.slice_size[0]*self.d_shape[0]):
+                    raise ValueError("chunked_slice_size cannot be larger than dataset size")
                 self.chunk_shape = tuple(int(np.ceil(self.chunked_slice_size / single_slice_size)) for single_slice_size in self.slice_size)
-            _message("Estimated Chunk shape: %s"%str(self.chunk_shape), self.VERBOSITY > 1)
+                _message("Estimated Chunk shape: %s"%str(self.chunk_shape), self.VERBOSITY > 1)
+                return
+            else:
+                self.chunk_shape = None
+                return
         return
 
     def read_slice(self, axis = None, slice_idx = None):
@@ -217,6 +259,9 @@ class DataFile():
         return img[0]
 
     def read_data(self, slice_3D = (slice(None,None),)*3):
+        """Read a block of data. Only supported for hdf5 datasets.
+        slice_3D   : list of three python slices e.g. [slice(start,stop,step)]*3
+        """
         
         if self.tiff_mode:
             ch = np.asarray(read_tiffseq(self.fname, s = slice_3D[0]))
@@ -228,11 +273,24 @@ class DataFile():
             ch = np.asarray(hf[self.data_tag][slice_3D[0],slice_3D[1],slice_3D[2]])
         return ch
 
+    def read_sequence(self, idxs):
+        """Read a list of indices idxs along axis 0
+        """
+        with h5py.File(self.fname, 'r') as hf:
+            return np.asarray(hf[self.data_tag][idxs,...])
+    
     def read_chunk(self, axis = None, slice_start = None, chunk_shape = None, max_GB = 10.0, slice_end = "", skip_fac = None):
-        
-        if slice_end == "": # Do this to determine slice_end based on a max_GB value as RAM limit
+        """Read a chunk of data along a given axis.
+        axis         : int in (0,1,2), axis > 0 is not supported for tiff series
+        slice_start  : int, start index along axis
+        chunk_shape  : tuple, (optional) used if hdf5 has no attribute chunk_shape
+        max_GB       : float, maximum size of chunk that's read. slice_end will be calculated from this.
+        slice_end    : int, (optional) used if max_GB is not provided.
+        skip_fac     : int, (optional) "step" value as in slice(start, stop, step)
+        """
+        if slice_end == "":
+            # Do this to determine slice_end based on a max_GB value as RAM limit
             if (chunk_shape is None) & (not self.tiff_mode):
-#                _message("Debug: chunk_shape in read hdf5: %s"%str(chunk_shape))
                 chunk_shape = self.chunk_shape
             chunk_len = chunk_shape[axis] if chunk_shape is not None else 1
             slice_len = max(1,int(np.round(max_GB/self.slice_size[axis])//chunk_len))*chunk_len
@@ -264,17 +322,24 @@ class DataFile():
             ch = np.asarray(read_tiffseq(self.fname, s = s))
             return ch, s
 
-    def read_full(self):
+    def read_full(self, skip_fac = None):
+        """Read the full dataset
+        """
         
-        ch, s = self.read_chunk(axis = 0, slice_start = 0, slice_end = self.d_shape[0], skip_fac = None)
+        ch, s = self.read_chunk(axis = 0, slice_start = 0, slice_end = self.d_shape[0], skip_fac = skip_fac)
         return ch
     
     def write_full(self, ch):
-        
+        """Write the full dataset to filepath.
+        """
         self.write_chunk(ch, axis = 0, s = slice(0, self.d_shape[0]))
         return        
 
     def write_data(self, ch, slice_3D = None):
+        """Write a block of data. Only supported for hdf5 datasets.
+        ch         : numpy array (3D), to be written
+        slice_3D   : list of three python slices e.g. [slice(start,stop,step)]*3 - must match shape of ch
+        """
         
         if self.tiff_mode:
             raise ValueError("Not supported for tiff data")
@@ -289,7 +354,10 @@ class DataFile():
         
         
     def write_chunk(self, ch, axis = None, s = None):
-    
+        """Write a chunk of data along a given axis.
+        axis  : int in (0,1,2), axis > 0 is not supported for tiff series
+        s     : python slice(start, stop, step) - step must be None for tiff series
+        """
         if not self.tiff_mode:
                 
             if not os.path.exists(self.fname):
@@ -298,7 +366,6 @@ class DataFile():
             with h5py.File(self.fname, 'r+') as hf:
         
                 _message("Saving %s, axis %i,  slice %i to %i"%(self.fname.split('/')[-1], axis, s.start, s.stop), self.VERBOSITY > 1)    
-
 
                 ch = np.moveaxis(ch, 0, axis)
                 if axis == 0:
@@ -316,20 +383,12 @@ class DataFile():
                 raise FileExistsError("TIFF folder to be written already exists. Please delete first.")
             _message("Saving %s, axis %i,  slice %i to %i"%(self.fname.split('/')[-1], axis, s.start, s.stop), self.VERBOSITY > 1)    
             
-            if (self.d_type is None) or (self.d_type == np.float32):
-                write_dtype = IP.FLOAT32
-            elif self.d_type == np.uint8:
-                write_dtype = IP.INT8
-            elif self.d_type == np.uint16:
-                write_dtype = IP.INT16
-            else:
-                raise ValueError("write_dtype: input not recognized as any supported data type")
-            IP.save_stack(ch, SaveDir = self.fname, increment_flag = True, suffix_len = len(str(self.d_shape[axis])), dtype = write_dtype)
+            write_tiffseq(ch, SaveDir = self.fname, increment_flag = True,\
+                          suffix_len = len(str(self.d_shape[axis])))
         
         return
     
-
-
+from scipy.ndimage.filters import median_filter
 def get_domain_extent(d, min_size = 512):
 
     while True:
@@ -346,8 +405,8 @@ def get_domain_extent(d, min_size = 512):
         plt.pause(0.05)
         crop_X, crop_Y = np.sort(pts[:,0]).astype(np.uint16), np.sort(pts[:,1].astype(np.uint16))
         
-        
-        ax[1].imshow(IP.XY_medianBlur(d[:,d.shape[1]//2,:], X_kern_size = 5)[0], cmap = 'Greys', alpha = 0.5)
+        show_img = median_filter(d[:,d.shape[1]//2,:], size = 5)
+        ax[1].imshow(show_img, cmap = 'Greys', alpha = 0.5)
         ax[1].set_title("Then Select the top and bottom extents of the domain.")
         plt.pause(0.05)
         pts = np.asarray(plt.ginput(2))[:,1]
@@ -372,10 +431,12 @@ def get_domain_extent(d, min_size = 512):
     return crop_Z, crop_Y, crop_X
 
 def read_tiffseq(userfilepath = '', procs = None, s = None):
-
-    # s    : s is either a slice(start, stop, step) or a list of indices to be read
+    """Read a sequence of tiff images from folder.
+    userfilepath : path to folder containing images
+    s            : s is either a slice(start, stop, step) or a list of indices to be read  
+    """
     if not userfilepath:
-        raise ValueError("ERROR: File path is required.")
+        raise ValueError("File path is required.")
         return []
 
     if procs == None:
@@ -393,24 +454,61 @@ def read_tiffseq(userfilepath = '', procs = None, s = None):
         else:
             raise ValueError("s input not recognized.")
     
-    Im_Stack = Parallelize(ImgFileList, imread, procs = procs)
+    S = Parallelize(ImgFileList, imread, procs = procs)
 
-    return Im_Stack
+    return S
 
+def write_tiffseq(S, SaveDir = "", increment_flag = False,\
+                  suffix_len = None):
+    """Write a sequence of tiff images to a directory.
+    S              : numpy array (3D), sequence will be created along axis 0
+    SaveDir        : str, path to folder, will create directory if doesn't exist
+    increment_flag : bool, True to write append images to existing ones in folder
+    suffix_len     : int, e.g. 4 for 1000 images, 5 for 10,000
+    """
+    if not suffix_len:
+        if increment_flag:
+            raise ValueError("suffix_len required if increment_flag is True.")
+        else:
+            suffix_len = len(str(S.shape[0]))
+    
+    last_num = 0
+    if not os.path.exists(SaveDir):
+        os.makedirs(SaveDir)
+    else:
+        if not increment_flag:
+            shutil.rmtree(SaveDir)
+            os.makedirs(SaveDir)
+        else:
+            ImgFileList = sorted(glob.glob(SaveDir+'/*.tif'))
+            if not ImgFileList: ImgFileList = sorted(glob.glob(SaveDir+'/*.tiff'))
+            if not ImgFileList:
+                last_num = 0
+            else:
+                last_num = int(ImgFileList[-1].split('.')[0][-suffix_len:])    
+    
+    BaseDirName = os.path.basename(os.path.normpath(SaveDir))
+    
+    for iS in range(S.shape[0]):
+        img_num = str(iS+1+last_num).zfill(suffix_len)
+        imsave(os.path.join(SaveDir, BaseDirName + img_num + '.tif'), S[iS])
+    
+    return
+    
 def Parallelize(ListIn, f, procs = -1, **kwargs):
     
-    # This function packages the "starmap" function in multiprocessing for Python 3.3+ to allow multiple iterable inputs for the parallelized function.
-    # ListIn: any python list such that each item in the list is a tuple of non-keyworded arguments passable to the function 'f' to be parallelized.
-    # f: function to be parallelized. Signature must not contain any other non-keyworded arguments other than those passed as iterables.
+    """This function packages the "starmap" function in multiprocessing, to allow multiple iterable inputs for the parallelized function.
+    ListIn : list, each item in the list is a tuple of non-keyworded arguments for f.
+    f      : function to be parallelized. Signature must not contain any other non-keyworded arguments other than those passed as iterables.
     # Example:
     # def multiply(x, y, factor = 1.0):
     #   return factor*x*y
     # X = np.linspace(0,1,1000)
     # Y = np.linspace(1,2,1000)
     # XY = [ (x, Y[i]) for i, x in enumerate(X)] # List of tuples
-    # Z = IP.Parallelize_MultiIn(XY, multiply, factor = 3.0, procs = 8)
+    # Z = Parallelize_MultiIn(XY, multiply, factor = 3.0, procs = 8)
     # Create as many positional arguments as required, but remember all must be packed into a list of tuples.
-    
+    """
     if type(ListIn[0]) != tuple:
         ListIn = [(ListIn[i],) for i in range(len(ListIn))]
     
@@ -430,7 +528,13 @@ def Parallelize(ListIn, f, procs = -1, **kwargs):
     
     return OutList
    
+def show_header():
+    print("\n" + "#"*60 + "\n")
+    print("\tWelcome to CTSegNet: AI-based 3D Segmentation")
+    print("\n" + "#"*60 + "\n")
+    return
 
+    
 if __name__ == "__main__":
     
     mem_thres = 20.0

@@ -5,14 +5,12 @@ Created on Sat Nov 16 17:13:22 2019
 
 @author: atekawade
 
-The run_segmenter_inmem program loads all data into memory before segmenting it, allowing for more manipulation such as 45 deg rotations, tiff data slicing, etc.
-v2: This version now handles tiff and hdf5 data formats for input (CT) and output (seg-masks). It has a command-line API with options for file-based inputs.
+CTSegNet is more than a 2D CNN model - it's a 3D Segmenter that uses 2D CNNs. The set_utils.py defines the Segmenter class that wraps over a keras U-net-like model (defined by models.py), integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow. To slice a 3D volume, we manipulations such as 45 deg rotations, orthogonal slicing, patch extraction and stitching.
 """
-
-# line 13 empty for good luck
 
 import sys
 import os
+# line 13 empty for good luck
 import numpy as np
 import pandas as pd
 import re
@@ -21,28 +19,15 @@ import h5py
 import cv2
 import time
 import tensorflow as tf
-import keras
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 
 from ct_segnet.data_utils import patch_maker as PM
+from ct_segnet.data_utils.data_io import Parallelize
 from ct_segnet.model_utils.losses import custom_objects_dict
 
-from ImageStackPy import ImageProcessing as IP
+
+
 VERBOSE = False
-
-
-import logging
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-stderr = sys.stderr
-sys.stderr = open(os.devnull, 'w')
-sys.stderr = stderr
-import absl.logging
-logging.root.removeHandler(absl.logging._absl_handler)
-absl.logging._warn_preinit_stderr = False
-logger = tf.get_logger()
-logger.disabled = True
-logger.setLevel(logging.FATAL)
-graph = tf.get_default_graph()
 
 def message(_str):
     
@@ -52,20 +37,29 @@ def message(_str):
 
 
 class Segmenter():
-    
-    def __init__(self, model_filename):
+    """The Segmenter class wraps over a keras model, integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow.
+    """
+    def __init__(self, model_filename = None, model = None, model_name = "unknown"):
+        """
+        model          :  keras model with input shape = out shape = (ny, nx, 1)
+        model_filename :  path to keras model file (e.g. "model_1.h5")
+        model_name     :  (optional) just a name for the model
+        """
+        if model is not None:
+            self.model = model
+            self.model_name = model_name
+        else:
+            self.model_name = os.path.split(model_filename)[-1].split('.')[0]
+            self.model = load_model(model_filename, custom_objects = custom_objects_dict)
 
-        self.model_name = os.path.split(model_filename)[-1].split('.')[0]
-        self.model_filename = model_filename
-        config = tf.ConfigProto()
-        config.gpu_options.per_process_gpu_memory_fraction = 0.8
-        config.gpu_options.allow_growth = True
-        session = tf.Session(config = config)
-        keras.backend.clear_session() # Always clear session before defining layers. Clears memory and old dependencies.
-        self.model = load_model(model_filename, custom_objects = custom_objects_dict)
-        
     def seg_image(self, p, max_patches = None, overlap = None):
-    
+
+        """function to test the segmenter on arbitrary sized 2D image;\
+        extracts patches shape = input shape of 2D CNN
+        max_patches : tuple, (my, mx) are # of patches along Y, X in image
+        p           : greyscale image of shape (ny, nx)
+        overlap     : tuple or int, number of overlapping pixels between patches
+        """
         # Handle patching parameter inputs
         patch_size = self.model.output_shape[1:-1]    
         if type(max_patches) is not tuple:
@@ -73,11 +67,13 @@ class Segmenter():
             
         if type(overlap) is not tuple:
             overlap = (overlap, overlap)
-        overlap = (0 if max_patches[0] == 1 else overlap[0], 0 if max_patches[1] == 1 else overlap[1])
+        overlap = (0 if max_patches[0] == 1 else overlap[0],\
+                   0 if max_patches[1] == 1 else overlap[1])
     
         # Resize images
         orig_shape = p.shape
-        p = cv2.resize(p, (max_patches[1]*patch_size[1] - overlap[1], max_patches[0]*patch_size[0] - overlap[0]))
+        p = cv2.resize(p, (max_patches[1]*patch_size[1] - overlap[1],\
+                           max_patches[0]*patch_size[0] - overlap[0]))
         
         # Make patches
         downres_shape = p.shape
@@ -102,34 +98,50 @@ class Segmenter():
         
         # Finally, resize the images to the original shape of slices... This will result in some loss of resolution...
         p = cv2.resize(p, (orig_shape[1], orig_shape[0]))
-    
-        return np.asarray(np.round(p)).astype(np.uint8)
 
-    def seg_chunk(self, p, max_patches = None, overlap = None, nprocs = None, arr_split = 1):
+        # outputs: segmented image of same shape as input image p
+        return np.asarray(np.round(p)).astype(np.uint8)
     
+
+    def seg_chunk(self, p, max_patches = None, overlap = None,\
+                  nprocs = None, arr_split = 1):
+        """Segment a volume of shape (nslices, ny, nx). The 2D keras model passes\
+        along nslices, segmenting images (ny, nx) with a patch size defined by input \
+        to the model
+        max_patches   : tuple, (my, mx) are # of patches along Y, X in image (ny, nx)
+        overlap       : tuple or int, number of overlapping pixels between patches
+        nprocs        : number of CPU processors for multiprocessing Pool
+        arr_split     : breakdown chunk into arr_split number of smaller chunks
+        """
+        
         # Handle patching parameter inputs
-        patch_size = self.model.output_shape[1:-1]    
+        patch_size = self.model.output_shape[1:-1]
         if type(max_patches) is not tuple:
             max_patches = (max_patches, max_patches)
             
         if type(overlap) is not tuple:
             overlap = (overlap, overlap)
-        overlap = (0 if max_patches[0] == 1 else overlap[0], 0 if max_patches[1] == 1 else overlap[1])
+        overlap = (0 if max_patches[0] == 1 else overlap[0],\
+                   0 if max_patches[1] == 1 else overlap[1])
     
         # Resize images
         orig_shape = p[0].shape
-        p = np.asarray([cv2.resize(p[ii], (max_patches[1]*patch_size[1] - overlap[1], max_patches[0]*patch_size[0] - overlap[0])) for ii in range(p.shape[0])])
+        p = np.asarray([cv2.resize(p[ii], (max_patches[1]*patch_size[1] - overlap[1],\
+                                           max_patches[0]*patch_size[0] - overlap[0]))\
+                        for ii in range(p.shape[0])])
         
         # Make patches
         message("Making patches...")
         message("\tCurrent d shape:" + str(np.shape(p)))
         downres_shape = p[0].shape
         steps = PM.get_stepsize(downres_shape, patch_size)
-        p = IP.Parallelize(p, PM.get_patches, procs = nprocs, patch_size = patch_size, steps = steps)
+        p = Parallelize(p, PM.get_patches, procs = nprocs, \
+                           patch_size = patch_size, steps = steps)
         p = np.asarray(p)
         
-        # The dataset now has shape: (nslices, ny, nx, py, px). ny, nx are # of patches, and py, px is patch_shape.
-        # Reshape this dataset into (n, py, px) where n = nslices*ny*nx. Trust numpy to preserve order. lol.
+        # The dataset now has shape: (nslices, ny, nx, py, px),
+        # where ny, nx are # of patches, and py, px is patch_shape.
+        # Reshape this dataset into (n, py, px) where n = nslices*ny*nx.
         dataset_shape = p.shape
         p = p.reshape((-1,) + patch_size)
         
@@ -148,18 +160,25 @@ class Segmenter():
         message("\tCurrent d shape:" + str(np.shape(p)))
         p = np.array_split(p, arr_split)
         
-        p = [np.asarray(IP.Parallelize(p[ii], PM.recon_patches, img_shape = downres_shape, steps = steps, procs = nprocs)) for ii in range(arr_split)]
+        p = [np.asarray(Parallelize(p[ii], PM.recon_patches,\
+                                    img_shape = downres_shape,\
+                                    steps = steps, procs = nprocs\
+                                   )) for ii in range(arr_split)]
         p = np.concatenate(p, axis = 0)
         
         # Finally, resize the images to the original shape of slices... This will result in some loss of resolution...
         message("Resizing images to original slice size...")
         message("\tCurrent d shape:" + str(np.shape(p)))
-        p = np.asarray([cv2.resize(p[ii], (orig_shape[1], orig_shape[0])) for ii in range(p.shape[0])])
-    
+        p = np.asarray([cv2.resize(p[ii], (orig_shape[1], orig_shape[0]))\
+                        for ii in range(p.shape[0])])
         return np.asarray(np.round(p)).astype(np.uint8)
 
 def get_repadding(crops, d_shape):
-    
+
+    """Returns padding values to restore 3D np array after it was cropped.
+    crops    :   3 tuples in a list [(nz1,nz2), (ny1,ny2), (nx1,nx2)]
+    d_shape  :   original shape of 3D array
+    """
     pads = []
     for idx, crop in enumerate(crops):
         pad = [0,0]
@@ -178,10 +197,32 @@ def get_repadding(crops, d_shape):
         
     return tuple(pads)
                 
-            
-
-def process_data(p, segmenter, preprocess_func = None, max_patches = None, overlap = None, nprocs = None, rot_angle = 0.0, slice_axis = 0, crops = None, arr_split = 1):
+def _rotate(imgs, angle):
+    """Just a wrapper for cv2's affine transform for rotating an image about center
+    imgs   :   volume or series of images (n, ny, nx)
+    angle  :   float, value to rotate image about center, along (ny,nx)
+    """
+    rows, cols = imgs[0].shape
+    M = cv2.getRotationMatrix2D((cols/2,rows/2), angle,1)
+    return np.asarray([cv2.warpAffine(imgs[iS],M,(cols,rows)) for iS in range(len(imgs))])    
+def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
+                 overlap = None, nprocs = None, rot_angle = 0.0, slice_axis = 0,\
+                 crops = None, arr_split = 1):
+    """Segment a volume of shape (nz, ny, nx). The 2D keras model passes
+    along either axis (0,1,2), segmenting images with a patch size defined by input
+    to the model in the segmenter class.
+    max_patches     : tuple, (?,?) number of patches along each axis of 2D image
+    overlap         : tuple or int, number of overlapping pixels between patches
+    slice_axis      : int (0,1,2); axis along which to draw slices
+    crops           : list of three tuples; each tuple (start, stop) will
+                      define a python slice for the respective axis
+    rot_angle       : rotate volume around Z axis before slicing along any given axis.
+                      Note this is redundant if slice_axis = 0
     
+    nprocs          : number of CPU processors for multiprocessing Pool
+    arr_split       : breakdown chunk into arr_split number of smaller chunks
+    preprocess_func : pass a preprocessing function that applies a 2D filter on an image
+    """
     if nprocs is None:
         nprocs = 4
     if p.ndim != 3:
@@ -190,13 +231,11 @@ def process_data(p, segmenter, preprocess_func = None, max_patches = None, overl
     message("Orienting, rotating and padding as requested...")
     # Rotate the volume along axis 0, if requested
     if rot_angle > 0.0:
-        p = np.asarray(IP.rotate_CCW_aboutCenter(p, rot_angle))
+        p = _rotate(p, rot_angle)
     
     if crops is not None:
-        
         pads = get_repadding(crops, p.shape)
         p = p[slice(*crops[0]), slice(*crops[1]), slice(*crops[2])]
-        
 
     # Orient the volume such that the first axis is the direction in which to slice through...
     p = np.moveaxis(p, slice_axis, 0)
@@ -222,7 +261,7 @@ def process_data(p, segmenter, preprocess_func = None, max_patches = None, overl
     
     # Rotate the volume along axis 0, back to its original state
     if rot_angle > 0.0:
-        p = np.asarray(IP.rotate_CCW_aboutCenter(p, -rot_angle))
+        p = _rotate(p, -rot_angle)
     message("\tDone")
     
     return p.astype(np.uint8)
