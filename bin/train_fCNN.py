@@ -41,18 +41,17 @@ def nullable_string(val):
     return val
 
     
-
-    
 def main(args_summary, **kwargs):
 
     mpl.use('Agg')
+    
     
     # Inputs from argparser
     args.kern_size = _make_tuples(args.kern_size)
     args.kern_size_upconv = _make_tuples(args.kern_size_upconv)
     args.pool_size =  _make_tuples(args.pool_size)
 
-    print('\n' + '#'*25 + '\nNew training sequence:\n' + '#'*25)
+    data_io.show_header()
     
     ############### LOAD OR REBUILD fCNN MODEL ####################
     model_file = os.path.join(args.model_path, args.model_name + ".hdf5")
@@ -60,6 +59,8 @@ def main(args_summary, **kwargs):
     if not os.path.exists(model_history): os.makedirs(model_history)
 
     if args.rebuild:
+        if args.config_model is None:
+            raise Exception("Model config file must be provided if rebuilding")
         
         img_shape = (args.model_size, args.model_size, 1)
         segmenter = build_Unet(img_shape, \
@@ -94,7 +95,6 @@ def main(args_summary, **kwargs):
     Y = data_io.DataFile(train_path, tiff = False, data_tag = 'Y', VERBOSITY = 0)
     
     # used to evaluate accuracy metrics during training
-    print("Loading test data...")
     test_path = os.path.join(args.data_path, args.test_fname)
     Xtest = data_io.DataFile(test_path, tiff = False, data_tag = 'X', VERBOSITY = 0)
     Ytest = data_io.DataFile(test_path, tiff = False, data_tag = 'Y', VERBOSITY = 0)
