@@ -18,12 +18,17 @@ setup(
     # Needed for dependencies
     install_requires=['tensorflow-gpu==1.14',
                       'Keras==2.2.4',
-                      'keras-utils==1.0.13'],
+                      'keras-utils==1.0.13',
+		      'numpy',
+                      'scikit-image',
+		      'matplotlib',
+	              'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn',
+		      'ConfigArgParse', 'tqdm'],
     version='1.16',
     license='BSD',
     description='Automated 3D segmentation powered by 2D convolutional neural networks',
-    # We will also need a readme eventually (there will be a warning)
     long_description=open('README.md').read(),
 )
+
 
 
