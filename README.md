@@ -73,4 +73,5 @@ Here is a sample architecture that you can build using the model_utils sub-modul
 Read our paper!  
 <sup>1</sup>Tekawade, Aniket, et al. *"High-fidelity geometry generation from CT data using convolutional neural networks."* Developments in X-Ray Tomography XII. Vol. 11113. International Society for Optics and Photonics, 2019.
 Or contact me:  
-atekawade [at] anl [dot] gov
+
+<p align="center">atekawade [at] anl [dot] gov</p>
