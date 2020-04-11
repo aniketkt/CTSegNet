@@ -102,6 +102,11 @@ def n_patches_type(s):
     s = ','.join(s)
     return ast.literal_eval(s)
 
+def crops_type(s):
+    s = s.split(':')
+    s = ','.join(s)
+    return ast.literal_eval(s)
+
 
 class InputError(Exception):
     def __init__(self, message):

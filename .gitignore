@@ -1,7 +1,7 @@
 # .gitignore
 
 __pycache__
-__seg_utils.py
 venv
 env
-test_scripts/
+.ipynb_checkpoints/
+test_notebook.ipynb
