@@ -1,30 +1,19 @@
-*************************************************************************************************************************
-	SOFTWARE COPYRIGHT NOTIFICATION
-SF-19-134
-************************************************************************************************************************* 
-(c) COPYRIGHT 2020 UChicago Argonne, LLC
-
-THIS SOFTWARE DISCLOSES MATERIAL PROTECTED UNDER COPYRIGHT LAW AND FURTHER DISSEMINATION IS PROHIBITED WITHOUT PRIOR WRITTEN CONSENT OF THE PATENT COUNSEL OF ARGONNE NATIONAL LABORATORY.
-
-************************************************************************************************************************
-
-ARGONNE NATIONAL LABORATORY, WITH A FACILITY IN THE STATE OF ILLINOIS, IS OWNED BY THE UNITED STATES GOVERNMENT, AND OPERATED BY UCHICAGO ARGONNE, LLC UNDER PROVISION OF A CONTRACT WITH THE DEPARTMENT OF ENERGY.
-
-************************************************************************************************************************
-
-	GOVERNMENT LICENSE AND DISCLAIMER
-
-************************************************************************************************************************
-
-NOTICE:   This data was produced by UChicago Argonne, LLC under Contract No. DE-AC02-06CH11357 with the Department of Energy.
-
-During the period of commercialization or such other time period specified by DOE, the Government is granted for itself and others acting on its behalf a paid-up, nonexclusive, irrevocable worldwide license in such copyrighted data to reproduce, prepare derivative works and perform publicly and display publicly, by or on behalf of the Government. Subsequent to that period the Government is granted for itself and others acting on its behalf a paid-up, nonexclusive, irrevocable worldwide license in such copyrighted data to reproduce, distribute copies to the public, prepare derivative works, perform publicly and display publicly, and to permit others to do so. The specific term of the license can be identified by inquiry made to UChicago Argonne, LLC or DOE. 
+<p align="center">Copyright © 2020, UChicago Argonne, LLC</p>  
+<p align="center">All Rights Reserved</p>  
+<p align="center">Software Name: CTSegNet: Automated 3D Segmentation with Deep Learning</p>  
+<p align="center">By: Argonne National Laboratory</p>  
+<p align="center">OPEN SOURCE LICENSE</p>  
 
 
-	THIS SOFTWARE IS SUPPLIED “AS IS” WITHOUT WARRANTY OF ANY KIND.
+<p align="justify">Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:</p>
 
-NEITHER THE UNITED STATES GOVERNMENT, NOR THE UNITED STATES DEPARTMENT OF ENERGY, NOR UCHICAGO ARGONNE, LLC, NOR ANY OF THEIR EMPLOYEES, MAKES ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES ANY LEGAL LIABILITY OR RESPONSIBILITY FOR THE ACCURACY, COMPLETENESS, OR USEFULNESS OF ANY INFORMATION, DATA, APPARATUS, PRODUCT, OR PROCESS DISCLOSED, OR REPRESENTS THAT ITS USE WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS. 	
+<p align="justify">1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.</p>
+<p align="justify">2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.</p>
+<p align="justify">3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.</p>
 
-************************************************************************************************************************
+******************************************************************************************************
+**<p align="center">DISCLAIMER</p>**  
+<p align="justify">THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.</p>
 
-LICENSING INQUIRIES MAY BE DIRECTED TO THE TECHNOLOGY COMMERCIALIZATION & PARTNERSHIPS DIVISION AT ARGONNE NATIONAL LABORATORY.	
+***************************************************************************************************
+
