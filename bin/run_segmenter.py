@@ -5,23 +5,23 @@ Created on Sat Nov 16 17:13:22 2019
 
 @author: atekawade
 Task: Run 3D segmenter on an arbitrarily sized CT dataset. 
-Caution: For very large datasets, it is strongly recommended that you chunk the hdf5 using "chunk_hdf5.py" before running this script.
 Algorithm Description:
-run_segmenter_hdf5.py is optimized for minimal use of RAM, exploiting the multi-axial slicing capabilities of chunked hdf5 datasets.
-Chunks of size "mem_thres (GB)" are read from a given "slice_axis", patches are extracted as given by "n_patches", and passed into the fCNN. The chunks are then reconstructed from the segmented patches output from fCNN. This generates one mask. This is repeated for as many masks along various combinations of slice_axis and n_patches.
-Finally, an ensemble vote of all masks is performed.
+run_segmenter.py is optimized for minimal use of disk r/w actions, when datasets are smaller or you have lots of RAM. As a thumb-rule, this works well when dataset size (32 bit float) is < 20% of RAM available.
+The full CT volume is read into memory, then from a given "slice_axis", patches are extracted as given by "n_patches", and passed into the fCNN. The segmented volume is then reconstructed from the segmented patches output from fCNN. This generates one mask. This is repeated for as many masks along various combinations of slice_axis, n_patches. As opposed to the hdf5-only version, this version reads the full volume into memory allowing additional features; you can:
+1. rotate the volume along axis 0, then slice along any axis 1 or 2.
+2. crop out part of the volume and segment it, then restore it into the native index space
+
+The above process makes any number of segmentation maps. Finally, an ensemble vote of all these masks is performed.
 
 Algorithm:
 if run_seg is True:
+    read CT volume into memory
     for mask in masks:
-        create new hdf5 dataset with name = mask_name
-        for chunk in Chunks along slice_axis:
-            read chunk
-            segment chunk with fCNN
-            write chunk into hdf5 named (mask_name)
-if run_ensemble is True:
+        create new dataset with name = mask_name
+        segment volume with process_data() function
+        write volume into tiff / hdf5 named (mask_name)
+if run_ensemble is True: # same as run_segmenter_hdf5
     create new hdf5 or tiff folder (tiff_output = False or True)
-    for chunk in Chunks along slice_axis = 0:
         for mask in masks:
             read chunk
         calculate voxel-wise median for all chunks from respective masks
@@ -46,31 +46,43 @@ import time
 
 from ct_segnet.model_utils.losses import custom_objects_dict
 from ct_segnet.data_utils import patch_maker as PM
-from ct_segnet.seg_utils import Segmenter
-
+from ct_segnet.seg_utils import Segmenter, process_data
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 from ct_segnet.data_utils import data_io
-from ct_segnet.data_utils.data_io import str_to_bool, n_patches_type
-
+from ct_segnet.data_utils.data_io import str_to_bool, n_patches_type, crops_type
 
 
 def main(args):
+    # Build mask parameters DataFrame
     df_params = pd.DataFrame({"mask_name" : args.mask_name,\
                               "slice_axis" : args.slice_axis,\
                               "n_patches" : args.n_patches,\
-                              "overlap"  : args.overlap})
-    mpl.use(args.mpl_agg)
+                              "overlap"  : args.overlap, \
+                              "rotation" : args.rotation})
 #     print(df_params)
+    
+    mpl.use(args.mpl_agg)
+
 
     data_io.show_header()
     if not os.path.exists(args.seg_path): os.makedirs(args.seg_path)
     if args.run_seg:
-        # Load model from model repo
+        
+        # Understand input data format
+        if os.path.isdir(args.ct_fpath):
+            tiff_input = True
+        elif args.ct_fpath.split('.')[-1] in ("hdf5", "h5"):
+            tiff_input = False
+            if args.ct_data_tag == "":
+                raise ArgumentTypeError("dataset-name required for hdf5")
+        else:
+            raise ArgumentTypeError("input file type not recognized. must be tiff folder or hdf5 file")
+        
         ct_dfile = data_io.DataFile(args.ct_fpath, \
-                                    tiff = False,\
+                                    tiff = tiff_input,\
                                     data_tag = args.ct_data_tag, \
                                     VERBOSITY = args.rw_verbosity)
         ct_dfile.show_stats()
@@ -78,54 +90,54 @@ def main(args):
             print("\nSet stats_only = False and start over to run program.")
             sys.exit()
         
-        chunk_shape = ct_dfile.chunk_shape
+        # Load model from model repo
         model_filename = os.path.join(args.model_path, args.model_name + '.hdf5')
         print("\nStarting segmentation mode ...")
         segmenter = Segmenter(model_filename = model_filename)
         
-        for idx, row in df_params.iterrows(): # iteratve over masks
+        print("Reading CT volume into memory...")
+        dd = ct_dfile.read_full()
+        
+        for idx, row in df_params.iterrows(): # iterate over masks
 
             # assign arguments from df_params for this mask
             slice_axis = row["slice_axis"]
             max_patches = row["n_patches"]
             segfile_tag = row["mask_name"]
             overlap = row["overlap"]
+            rotation = row["rotation"]
             
             # define DataFile object for mask
-            seg_fname = os.path.join(args.seg_path, segfile_tag + ".hdf5")
+            seg_fname = os.path.join(args.seg_path, segfile_tag)
+            if not args.tiff_output: seg_fname = seg_fname + ".hdf5"
             seg_dfile = data_io.DataFile(seg_fname, \
                                          data_tag = "SEG",\
-                                         tiff = False, \
+                                         tiff = args.tiff_output, \
                                          d_shape = ct_dfile.d_shape, \
                                          d_type = np.uint8, \
-                                         chunk_shape = chunk_shape,\
                                          VERBOSITY = args.rw_verbosity)            
             seg_dfile.create_new(overwrite = args.overwrite_OK)
 
             t0 = time.time()
-            slice_start = 0
+            
             print("\nWorking on %s\n"%segfile_tag)
-            pbar = tqdm(total = seg_dfile.d_shape[slice_axis])
-            while slice_start < seg_dfile.d_shape[slice_axis]:
-                ch, s = ct_dfile.read_chunk(axis = slice_axis, \
-                                            slice_start = slice_start, \
-                                            max_GB = args.mem_thres)
-                ch = segmenter.seg_chunk(ch, \
-                                         max_patches = max_patches, \
-                                         overlap = overlap,\
-                                         nprocs = args.nprocs, \
-                                         arr_split = args.arr_split)
-                seg_dfile.write_chunk(ch, axis = slice_axis, s = s)
-                del ch
-                slice_start = s.stop
-                pbar.update(s.stop - s.start)
-            pbar.close()
+            ch = process_data(dd, segmenter, \
+                              slice_axis = slice_axis, \
+                              rot_angle = rotation, \
+                              max_patches = max_patches, \
+                              overlap = overlap, \
+                              nprocs = args.nprocs, \
+                              arr_split = args.arr_split, \
+                              crops = args.crops)
+            seg_dfile.write_full(ch)
             t1 = time.time()
             total_time = (t1 - t0) / 60.0
             print("\nDONE on %s\nTotal time for generating %s mask: %.2f minutes"%(time.ctime(), segfile_tag, total_time))
             del slice_axis
             del max_patches
             del segfile_tag
+            del rotation
+            del ch
         
     if args.run_ensemble:
         print("\nStarting ensemble mode ...\n")
@@ -135,7 +147,6 @@ def main(args):
         temp_fname = os.path.join(args.seg_path, df_params.loc[0,"mask_name"] + ".hdf5")
         temp_ds = data_io.DataFile(temp_fname, data_tag = "SEG", tiff = False, VERBOSITY = 0)
         mask_shape = temp_ds.d_shape
-        chunk_shape = temp_ds.chunk_shape
         if not args.run_seg: temp_ds.show_stats()
         del temp_ds
         del temp_fname
@@ -150,7 +161,6 @@ def main(args):
                                       tiff = args.tiff_output,\
                                       d_shape = mask_shape, \
                                       d_type = np.uint8, \
-                                      chunk_shape = chunk_shape,\
                                       VERBOSITY = args.rw_verbosity)            
         vote_dfile.create_new(overwrite = args.overwrite_OK)
         
@@ -170,7 +180,6 @@ def main(args):
                     
                 ch[idx], s = seg_dfile.read_chunk(axis = 0, \
                                                   slice_start = slice_start, \
-#                                                   max_GB = args.mem_thres/(n_masks*4)) # 4 for 8 bit dtype
                                                   slice_end = slice_start + 5)
             ch = np.asarray(ch)
             ch = np.median(ch, axis = 0).astype(np.uint8)
@@ -220,7 +229,8 @@ if __name__ == "__main__":
     parser.add('--n_patches', type = n_patches_type, action = 'append') #ast.literal_eval
     parser.add('--slice_axis', type = int, action = 'append')
     parser.add('--overlap', type = int, action = 'append')
-    
+    parser.add('--rotation', type = float, action = 'append')
+    parser.add('--crops', type = crops_type, action = 'append')
     args = parser.parse_args()
 
 #     print(parser.format_values())
