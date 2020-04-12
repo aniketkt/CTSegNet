@@ -8,7 +8,7 @@ CTSegNet is a package for end-to-end 3D segmentation workflow for large X-ray to
 ## The Package
 ### Installation
 To install only ct_segnet modules into your python 3 environment, use pip. For compatibility with tensorflow 1.14, please install ct_segnet 1.16 from the tf-1 branch.  
-```
+```  
 pip install git+https://github.com/aniketkt/CTSegNet.git@master#egg=ct_segnet  
 ```  
 
@@ -25,11 +25,13 @@ ct_segnet
 ├── train_utils.py  
 └── viewer.py  
 
-CTSegNet also provides a command-line interface with config files. To download the entire package with executables, sample model files and config files, clone the master branch and install locally as:  
+CTSegNet also provides a command-line interface with config files. To download the entire package with executables, sample model files and config files, clone the master branch and install locally. To download the .h5 model files when cloning, you will need [Git LFS](https://github.com/git-lfs/git-lfs/wiki/Installation) installed.  
 ```
+git clone https://github.com/aniketkt/CTSegNet.git
+
 pip install setup.py
 ```   
-
+### Command-line interface
 While executable scripts are provided, it's easy to write your own too. Data formats supported are .tiff sequence and hdf5. Example config files are provided in cfg_files/.  
 **TRAIN/TEST:**
 Extract training data from arbitrarily sized CT data and ground-truth pairs.  
@@ -79,4 +81,4 @@ Read our paper!
 <sup>1</sup>Tekawade, Aniket, et al. *"High-fidelity geometry generation from CT data using convolutional neural networks."* Developments in X-Ray Tomography XII. Vol. 11113. International Society for Optics and Photonics, 2019.
 Or contact me:  
 
-<p align="center">atekawade [at] anl [dot] gov</p>
+<p align="center">atekawade [at] anl [dot] gov</p>  
