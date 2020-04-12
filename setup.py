@@ -16,7 +16,7 @@ setup(
     # Needed to actually package something
     packages= ['ct_segnet', 'ct_segnet.data_utils', 'ct_segnet.model_utils'],
     # Needed for dependencies
-    install_requires=['tensorflow-gpu==2.0',
+    install_requires=['tensorflow-gpu==2.0.1',
 			'numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn','ConfigArgParse', 'tqdm'],
     version='1.2',
     license='BSD',
