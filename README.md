@@ -28,8 +28,7 @@ ct_segnet
 CTSegNet also provides a command-line interface with config files. To download the entire package with executables, sample model files and config files, clone the master branch and install locally. To download the .h5 model files when cloning, you will need [Git LFS](https://github.com/git-lfs/git-lfs/wiki/Installation) installed.  
 ```
 git clone https://github.com/aniketkt/CTSegNet.git
-
-pip install setup.py
+pip install CTSegNet/.
 ```   
 ### Command-line interface
 While executable scripts are provided, it's easy to write your own too. Data formats supported are .tiff sequence and hdf5. Example config files are provided in cfg_files/.  
