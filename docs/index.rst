@@ -4,7 +4,7 @@ CTSegNet
 
 
 .. image:: source/img/project-logo.png
-   :width: 320px
+   :width: 640px
    :alt: project
 
 
