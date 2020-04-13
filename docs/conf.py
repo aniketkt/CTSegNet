@@ -300,6 +300,7 @@ texinfo_documents = [
 
 autodoc_mock_imports = [
     'h5py',
+    'tifffile',
     'numpy',
     'pandas',
     'cv2',
