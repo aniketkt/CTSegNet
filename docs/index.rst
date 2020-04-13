@@ -1,6 +1,6 @@
-==========
-tomopy-cli
-==========
+========
+CTSegNet
+========
 
 
 .. image:: source/img/project-logo.png
