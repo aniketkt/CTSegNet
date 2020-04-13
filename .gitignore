@@ -1,7 +1,131 @@
-# .gitignore
-
-__pycache__
+# Custom #
+#####################
 venv
 env
-.ipynb_checkpoints/
 test_notebook.ipynb
+
+# Compiled source #
+###################
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+*.dylib
+
+# Packages #
+############
+# it's better to unpack these files and commit the raw source
+# git has its own built in compression methods
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.egg
+*.egg-info
+dist
+include
+share
+build
+eggs
+parts
+#bin
+var
+sdist
+develop-eggs
+.installed.cfg
+lib
+lib64
+__pycache__
+
+# Logs and databases #
+######################
+*.log
+*.sql
+*.sqlite
+
+# OS generated files #
+######################
+core
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.spyderworkspace
+*~
+
+
+# Python byproducts #
+#####################
+*.pyc
+build
+dist
+docs/_build
+*egg-info
+.settings
+pip-log.txt
+.ipynb_checkpoints
+
+# Other byproducts #
+####################
+.idea
+.project
+.spyderproject
+.pydevproject
+
+# LaTex generated files #
+#########################
+*.aux
+*.cls
+*.layout
+*.bst
+
+# Test files #
+##############
+tmp
+test.py
+main.py
+*.ipynb
+trunk
+
+# Installer logs
+##############
+pip-log.txt
+
+# Unit test / coverage reports #
+################################
+.coverage
+.tox
+nosetests.xml
+
+# Translations #
+################
+*.mo
+
+# Mercurial #
+#############
+.hg
+
+# Mr Developer #
+################
+.mr.developer.cfg
+.project
+.pydevproject
+.idea
+
+# Private functions #
+#####################
+script
+ptycho.py
+*.autotools
+*.cproject
+*.conf
+*.json
