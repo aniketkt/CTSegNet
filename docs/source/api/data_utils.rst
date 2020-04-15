@@ -1,5 +1,5 @@
-API reference
-=============
+:mod 'data_utils'
+--------------------
 
 .. toctree::
 
@@ -7,7 +7,7 @@ API reference
    data_utils/data_augmenter
    data_utils/patch_maker
         
-.. automodule:: ct_segnet
+.. automodule:: ct_segnet.data_utils
    :members:
    :undoc-members:
    :show-inheritance: 

@@ -1,4 +1,4 @@
-:mod:`ct_segnet.seg_utils`
+:mod:`data_augmenter`
 ==========================
 
 .. automodule:: ct_segnet.data_utils.data_augmenter

@@ -1,4 +1,4 @@
-:mod:`ct_segnet.seg_utils`
+:mod:`patch_maker`
 ==========================
 
 .. automodule:: ct_segnet.data_utils.patch_maker

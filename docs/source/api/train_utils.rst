@@ -1,4 +1,4 @@
-:mod:`ct_segnet.seg_utils`
+:mod:`train_utils`
 ==========================
 
 .. automodule:: ct_segnet.train_utils

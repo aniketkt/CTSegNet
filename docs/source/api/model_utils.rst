@@ -1,5 +1,5 @@
-API reference
-=============
+:mod 'model_utils'
+--------------------
 
 .. toctree::
 
@@ -7,7 +7,7 @@ API reference
    model_utils/losses
 
     
-.. automodule:: ct_segnet
+.. automodule:: ct_segnet.model_utils
    :members:
    :undoc-members:
    :show-inheritance: 

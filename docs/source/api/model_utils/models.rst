@@ -1,4 +1,4 @@
-:mod:`ct_segnet.seg_utils`
+:mod:`models`
 ==========================
 
 .. automodule:: ct_segnet.model_utils.models
