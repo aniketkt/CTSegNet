@@ -1,5 +1,5 @@
-:mod 'data_utils'
---------------------
+:mod: 'data_utils'
+=================
 
 .. toctree::
 

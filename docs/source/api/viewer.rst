@@ -1,4 +1,4 @@
-:mod:`ct_segnet.viewer`
+:mod:`viewer`
 ==========================
 
 .. automodule:: ct_segnet.viewer

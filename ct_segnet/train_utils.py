@@ -39,7 +39,8 @@ def data_generator(X, Y, batch_size):
         yield (x[...,np.newaxis], y[...,np.newaxis])
 
 class Logger(keras.callbacks.Callback):
-    """An instance of Logger can be passed to keras model.fit to log stuff at epochs.
+    """
+    An instance of Logger can be passed to keras model.fit to log stuff at epochs.
     :param model_paths: dict, with keys = ["name", "history", "file"]
     :param Xtest: DataFile instance of input images from test data for calculating model accuracy
     :param Ytest: DataFile instance of corresponding ground truth segmentation map from test data
