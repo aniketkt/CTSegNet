@@ -1,15 +1,12 @@
 API reference
 =============
 
-.. rubric:: **CTSegNet Modules:**
-
 .. toctree::
 
-   api/seg_utils
-   api/data_utils
-   api/train_utils
-   api/viewer
-        
+   model_utils/models
+   model_utils/losses
+
+    
 .. automodule:: ct_segnet
    :members:
    :undoc-members:

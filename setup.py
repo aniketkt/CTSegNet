@@ -18,7 +18,7 @@ setup(
     # Needed for dependencies
     install_requires=['tensorflow-gpu==2.0.1',
 			'numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn','ConfigArgParse', 'tqdm'],
-    version='1.2',
+    version=open('VERSION').read().strip(),
     license='BSD',
     description='Automated 3D segmentation powered by 2D convolutional neural networks',
     # We will also need a readme eventually (there will be a warning)

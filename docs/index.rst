@@ -14,9 +14,9 @@ CTSegNet
 Features
 --------
 
-* List here 
-* the module features
-
+* Command-line interface for deploying 3D segmentation workflow using 2D fCNNs as well training your own Unet-like models with data-augmentation.
+* Read/write utilities support tiff series and hdf5 format. The hdf5 implementation exploits chunking to minimize RAM usage in very large (>50 GB) datasets.
+* Write your own scripts to test models and visualize segmentation results using the API.
 
 Contribute
 ----------

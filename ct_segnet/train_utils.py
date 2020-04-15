@@ -24,8 +24,11 @@ def _norm(y):
     return y.astype(np.uint8)
 
 def data_generator(X, Y, batch_size):
-    """Generator that yields randomly sampled data pairs of size batch_size.
-    X, Y are DataFile object pairs of train / test / validation data.
+    """
+    Generator that yields randomly sampled data pairs of size batch_size. X, Y are DataFile instance pairs of train / test / validation data.
+    :param X: Input images
+    :param Y: Ground truth segmentation
+    :return: X, Y numpy arrays each of shape (n_batch, ny, ny) 
     """
     while True:
         idxs = sorted(random.sample(range(X.d_shape[0]), batch_size))
@@ -36,13 +39,15 @@ def data_generator(X, Y, batch_size):
         yield (x[...,np.newaxis], y[...,np.newaxis])
 
 class Logger(keras.callbacks.Callback):
-    """An instance of Logger can be passed to keras model.fit to log stuff at epochs
-    # Arguments
-        model_paths    : dict, with keys = ["name", "history", "file"]
-        Xtest, Ytest   : DataFile instances of test data pairs for calculating model accuracy
-        df_prev        : pandas.DataFrame, if retraining, pass previous epochs data
-        N              : int, autosave frequency
-        n_test         : int, number of test image pairs to be sampled every epoch
+    """An instance of Logger can be passed to keras model.fit to log stuff at epochs.
+    :param model_paths: dict, with keys = ["name", "history", "file"]
+    :param Xtest: DataFile instance of input images from test data for calculating model accuracy
+    :param Ytest: DataFile instance of corresponding ground truth segmentation map from test data
+    :param pandas.DataFrame df_prev: If retraining, pass previous epochs data
+    :param int N: autosave frequency (in epochs)
+    :n_test: int, number of test image pairs to be sampled every epoch
+    
+        
     """
     def __init__(self, Xtest, Ytest, model_paths, N, df_prev = None, n_test = None):
         
@@ -152,7 +157,9 @@ class Logger(keras.callbacks.Callback):
         
 
 def save_datasnaps(dg, model_history, n_imgs = 20):
-    
+    """
+    :meta private:
+    """
     if not os.path.exists(os.path.join(model_history,"data_snaps")):
         os.makedirs(os.path.join(model_history,"data_snaps"))
         
@@ -177,7 +184,18 @@ def save_datasnaps(dg, model_history, n_imgs = 20):
 
 
 def ROC(thresh, y_true = None, y_pred = None):
-    """Receiver Operating Characteristics (ROC) curve
+    """
+    Calculate receiver Operating Characteristics (ROC) curve
+    
+    Parameters
+    ----------
+    thresh : float
+            threshold value
+    y_true : ndarray
+            ground truth segmentation map (ny, nx)
+    y_pred : ndarray
+            predicted segmentation map (ny, nx)
+    
     """
     y_p = np.zeros_like(y_pred)
     y_p[y_pred > thresh] = 1
@@ -201,13 +219,25 @@ def ROC(thresh, y_true = None, y_pred = None):
 
 def calc_jac_acc(y_true, y_pred):
     """Jaccard accuracy or Intersection over Union
+    :meta private:
     """
     y_pred = np.round(np.copy(y_pred))
     jac_acc = (np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) - np.sum(y_pred*y_true) + 1)
     return jac_acc
 
 def fidelity(y_true, y_pred, tolerance = 0.95):
-    """Fidelity is number of images with IoU > tolerance
+    """
+    Fidelity is number of images with IoU > tolerance
+    
+    Parameters
+    ----------
+    tolerance : float
+                tolerance (default  = 0.95)
+    y_true    : ndarray
+                ground truth segmentation map (ny, nx)
+    y_pred    : ndarray
+                predicted segmentation map (ny, nx)
+    
     """
 
     XY = [(y_true[ii], y_pred[ii]) for ii in range(y_true.shape[0])]
@@ -229,6 +259,7 @@ def fidelity(y_true, y_pred, tolerance = 0.95):
 
 def save_results(dg, model_results, segmenter):
     """Save some results on test images into a folder in the path to model repo
+    :meta private:
     """
     x_test, y_test = next(dg)
     y_pred = segmenter.predict(x_test)

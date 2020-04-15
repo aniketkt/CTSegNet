@@ -1,14 +1,11 @@
 API reference
 =============
 
-.. rubric:: **CTSegNet Modules:**
-
 .. toctree::
 
-   api/seg_utils
-   api/data_utils
-   api/train_utils
-   api/viewer
+   data_utils/data_io
+   data_utils/data_augmenter
+   data_utils/patch_maker
         
 .. automodule:: ct_segnet
    :members:
