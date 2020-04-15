@@ -2,13 +2,13 @@
 
 CTSegNet is a package for end-to-end 3D segmentation workflow for large X-ray tomographic datasets using 2D fully convolutional neural networks (fCNN).
 <p align="center">
-  <img width="800" src="assets/2D_3D_algo.png">
+  <img width="800" src="docs/source/img/2D_3D_algo.png">
 </p>
 
 ## The Package
 ### Installation
 To install only ct_segnet modules into your python 3 environment, use pip. For compatibility with tensorflow 1.14, please install ct_segnet 1.16 from the tf-1 branch.  
-```
+```  
 pip install git+https://github.com/aniketkt/CTSegNet.git@master#egg=ct_segnet  
 ```  
 
@@ -25,11 +25,12 @@ ct_segnet
 ├── train_utils.py  
 └── viewer.py  
 
-CTSegNet also provides a command-line interface with config files. To download the entire package with executables, sample model files and config files, clone the master branch and install locally as:  
+CTSegNet also provides a command-line interface with config files. To download the entire package with executables, sample model files and config files, clone the master branch and install locally. To download the .h5 model files when cloning, you will need [Git LFS](https://github.com/git-lfs/git-lfs/wiki/Installation) installed.  
 ```
-pip install setup.py
+git clone https://github.com/aniketkt/CTSegNet.git
+pip install CTSegNet/.
 ```   
-
+### Command-line interface
 While executable scripts are provided, it's easy to write your own too. Data formats supported are .tiff sequence and hdf5. Example config files are provided in cfg_files/.  
 **TRAIN/TEST:**
 Extract training data from arbitrarily sized CT data and ground-truth pairs.  
@@ -55,20 +56,20 @@ python bin/rw_utils/convert_to_hdf5.py -f my_tiff_folder -o output_file.hdf5 -c 
 Here is a sample architecture that you can build using the model_utils sub-module in CTSegNet. We will refer to it as Unet-242 because of the 2-4-2 implementation of pooling layers.</p>
 
 <p align="center">
-  <img width="800" src="assets/Unet242.png">
+  <img width="800" src="docs/source/img/Unet242.png">
 </p>
 
 ### What is unique about CTSegNet?
 <p align="justify">While Unet-based segmentation is now commonplace, it is primarily limited to 2D data since 3D convolutional layers require prohibitively large GPU memory during training. Our approach efficiently exploits 2D fCNNs for 3D segmentation. You can generate multiple 3D masks by slicing along any axis, and choose a patching strategy based on the resolution-to-context trade-off in your CT data. For an fCNN with input/output images sized 512<sup>2</sup>, you can make patches in several ways. This a slice drawn from a scan of a gasoline injector along the transverse plane.</p>  
 
 <p align="center">
-  <img width="800" src="assets/patch_maker.png">
+  <img width="800" src="docs/source/img/patch_maker.png">
 </p>  
 
 <p align="justify">An ensemble vote from several 3D segmentations maps yields near voxel accuracy in many cases, where thresholding just won't work. Here's an example of a band-like artifact from restricted field-of-view in a CT scan (sagittal plane is shown).</p>  
 
 <p align="center">
-  <img width="800" src="assets/artifact.png">
+  <img width="800" src="docs/source/img/artifact.png">
 </p>
 
 <p align="justify">The data_utils.data_io module contains the DataFile class, which enables fast and memory-efficient slicing using hdf5 format so you can visualize and segment 100GB+ datasets from your workstation. With this, you can segment only parts of your data or test models on slices of your data, with a few lines of code. Tiff format is also supported but with limited functionality.</p>  
@@ -79,4 +80,4 @@ Read our paper!
 <sup>1</sup>Tekawade, Aniket, et al. *"High-fidelity geometry generation from CT data using convolutional neural networks."* Developments in X-Ray Tomography XII. Vol. 11113. International Society for Optics and Photonics, 2019.
 Or contact me:  
 
-<p align="center">atekawade [at] anl [dot] gov</p>
+<p align="center">atekawade [at] anl [dot] gov</p>  
