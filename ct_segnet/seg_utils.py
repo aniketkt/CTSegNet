@@ -196,6 +196,7 @@ def get_repadding(crops, d_shape):
         pads.append(tuple(pad))
         
     return tuple(pads)
+
                 
 def _rotate(imgs, angle):
     """Just a wrapper for cv2's affine transform for rotating an image about center

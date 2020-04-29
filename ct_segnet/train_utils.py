@@ -226,6 +226,15 @@ def calc_jac_acc(y_true, y_pred):
     jac_acc = (np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) - np.sum(y_pred*y_true) + 1)
     return jac_acc
 
+def calc_dice_coeff(y_true, y_pred):
+    """Dice coefficient
+    :meta private:
+    """
+    y_pred = np.round(np.copy(y_pred))
+    
+    dice = (2*np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) + 1)
+    return dice
+
 def fidelity(y_true, y_pred, tolerance = 0.95):
     """
     Fidelity is number of images with IoU > tolerance

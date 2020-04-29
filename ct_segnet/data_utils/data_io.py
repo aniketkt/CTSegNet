@@ -539,6 +539,48 @@ def show_header():
     print("\n" + "#"*60 + "\n")
     return
 
+def _istiff(fpath, data_tag):
+    """
+    Returns True if path provided is to a directory of tiffs, False if .hdf5 file.
+    Raises ArgumentTypeError if format is not supported.
+    """
+    # Understand input data format
+    if os.path.isdir(fpath):
+        tiff_input = True
+    elif fpath.split('.')[-1] in ("hdf5", "h5"):
+        tiff_input = False
+        if data_tag == "":
+            raise ArgumentTypeError("dataset-name required for hdf5")
+    else:
+        raise ArgumentTypeError("input file type not recognized. must be tiff folder or hdf5 file")
+    return tiff_input
+
+def get_cropped_shape(crops, d_shape):
+    if crops is not None:
+        crop_shape = [0]*len(d_shape)
+        for idx, crop in enumerate(crops):
+            _size = [0,0]
+            if (crop[0] is not None):
+                if crop[0] >= 0:
+                    _size[0] = min(abs(crop[0]), d_shape[idx])
+                elif crop[0] < 0:
+                    _size[0] = max(0, d_shape[idx] - abs(crop[0]))
+            else:
+                _size[0] = 0
+
+            if crop[1] is not None:
+                if crop[1] >= 0:
+                    _size[1] = min(abs(crop[1]), d_shape[idx])
+                elif crop[1] < 0:
+                    _size[1] = max(0, d_shape[idx] - abs(crop[1]))
+            else:
+                _size[1] = d_shape[idx]
+            crop_shape[idx] = max(_size[1] - _size[0], 0)
+    else:
+        crop_shape = d_shape
+    return tuple(crop_shape)
+        
+    
     
 if __name__ == "__main__":
     

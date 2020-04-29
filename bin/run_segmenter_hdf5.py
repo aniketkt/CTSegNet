@@ -53,7 +53,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 from ct_segnet.data_utils import data_io
-from ct_segnet.data_utils.data_io import str_to_bool, n_patches_type
+from ct_segnet.data_utils.data_io import str_to_bool, n_patches_type, crops_type
 
 
 
@@ -131,7 +131,7 @@ def main(args):
         print("\nStarting ensemble mode ...\n")
 
         t0 = time.time()
-        # quickly get the d_shape of one of the masks
+        # get the d_shape of one of the masks
         temp_fname = os.path.join(args.seg_path, df_params.loc[0,"mask_name"] + ".hdf5")
         temp_ds = data_io.DataFile(temp_fname, data_tag = "SEG", tiff = False, VERBOSITY = 0)
         mask_shape = temp_ds.d_shape
@@ -148,6 +148,7 @@ def main(args):
         if not args.tiff_output: vote_fname = vote_fname + ".hdf5"
         vote_dfile = data_io.DataFile(vote_fname, \
                                       tiff = args.tiff_output,\
+                                      data_tag = "SEG", \
                                       d_shape = mask_shape, \
                                       d_type = np.uint8, \
                                       chunk_shape = chunk_shape,\
@@ -160,7 +161,8 @@ def main(args):
         while slice_start < mask_shape[0]:
             ch = [0]*len(df_params)
             for idx, row in df_params.iterrows():
-                seg_fname = os.path.join(args.seg_path, row["mask_name"] + ".hdf5")
+                seg_fname = os.path.join(args.seg_path, row["mask_name"]) + ".hdf5"
+                
                 seg_dfile = data_io.DataFile(seg_fname, \
                                              tiff = False, \
                                              data_tag = "SEG", \
@@ -170,8 +172,7 @@ def main(args):
                     
                 ch[idx], s = seg_dfile.read_chunk(axis = 0, \
                                                   slice_start = slice_start, \
-#                                                   max_GB = args.mem_thres/(n_masks*4)) # 4 for 8 bit dtype
-                                                  slice_end = slice_start + 5)
+                                                  max_GB = args.mem_thres/(n_masks))
             ch = np.asarray(ch)
             ch = np.median(ch, axis = 0).astype(np.uint8)
             vote_dfile.write_chunk(ch, axis = 0, s = s)
@@ -188,7 +189,8 @@ def main(args):
     if args.remove_masks:
         print("Intermediate masks will be removed.")
         for idx, row in df_params.iterrows(): # iterate over masks
-            os.remove(os.path.join(args.seg_path, row["mask_name"] + ".hdf5"))
+            seg_fname = os.path.join(args.seg_path, row["mask_name"]) + ".hdf5"
+            os.remove(seg_fname)
         
     return
 
@@ -220,6 +222,8 @@ if __name__ == "__main__":
     parser.add('--n_patches', type = n_patches_type, action = 'append') #ast.literal_eval
     parser.add('--slice_axis', type = int, action = 'append')
     parser.add('--overlap', type = int, action = 'append')
+    parser.add('--rotation', type = float, action = 'append')
+    parser.add('--crops', type = crops_type, action = 'append')
     
     args = parser.parse_args()
 

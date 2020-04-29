@@ -1,0 +1,5 @@
+name,description,reference
+M_a01_242_512,First model trained on metal samples in limited-ROI mode with focal loss,https://doi.org/10.1117/12.2540442
+M_a02_242_512,Trained on metal samples with Binary cross-entropy loss (for comparison with FL),https://doi.org/10.1117/12.2540442
+M_a03_2222_512,Full Unet trained on metal samples with BCE loss (for comparison with FL),https://doi.org/10.1117/12.2540442
+M_d02_222_256,"Trained on foam phantoms with missing wedge, ring artifacts and sparse angles (submission to tomochallenge)",https://tomochallenge.github.io/

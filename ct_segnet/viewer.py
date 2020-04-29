@@ -17,11 +17,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from ct_segnet.data_utils import patch_maker as PM
 from ct_segnet.model_utils.losses import custom_objects_dict
-from ImageStackPy import ImageProcessing as IP
+# from ImageStackPy import ImageProcessing as IP
 
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
-
+from skimage.filters import sobel
 
 def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None, idxs = None):
     # ax    :   three axes
@@ -54,7 +54,8 @@ def edge_plot(img, seg_img, ax, color = [0,255,0]):
     # color: RGB values
     img = (255*((img - img.min()) / (img.max() - img.min()))).astype(np.uint8)
     img = np.concatenate([img[...,np.newaxis]]*3, axis = -1)
-    sob_img = IP.calc_sobel(np.copy(seg_img))[0]
+#     sob_img = IP.calc_sobel(np.copy(seg_img))[0]
+    sob_img = sobel(np.copy(seg_img))
     sob_img = (sob_img - sob_img.min()) / (sob_img.max() - sob_img.min())
     sob_img = (255*np.round(sob_img)).astype(np.uint8)
     img[sob_img == 255] = color
@@ -73,10 +74,6 @@ def seg_plot(img, seg_img, ax, alpha = 0.3, cmap = 'gray'):
     ax.imshow(seg_img, cmap = 'copper', alpha = alpha)
     
     return ax
-
-
-
-
 
 
 def add_scalebar(ax, bar_len, resolution, units = 'um', n_dec = 0, pad = 0.35, \

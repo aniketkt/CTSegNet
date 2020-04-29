@@ -44,6 +44,9 @@ def main(args):
     elif type(args.chunk_param) == tuple:
         chunk_shape = args.chunk_param
         chunk_size = None
+    else:
+        chunk_shape = None
+        chunk_size = None
     chunked_slice_size = args.chunked_slice_size
     
 #     print("Type chunk_param" + str(type(args.chunk_param)))
