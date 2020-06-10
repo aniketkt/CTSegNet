@@ -2,7 +2,12 @@
 ==========================
 
 .. automodule:: ct_segnet.seg_utils
-   :members: Segmenter, process_data
+   :members: process_data
+   
+.. autoclass:: ct_segnet.seg_utils.Segmenter
+   :members:
+   
+   
 
 
    

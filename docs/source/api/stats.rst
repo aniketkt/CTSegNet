@@ -2,5 +2,5 @@
 ==========================
 
 .. automodule:: ct_segnet.stats
-      :members:
+   :members:
    :show-inheritance:
