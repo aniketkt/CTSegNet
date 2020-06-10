@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Nov 16 17:13:22 2019
-
-@author: atekawade
-
-This file contains useful functions to view segmentation maps
+view segmentation maps overlain with image data
 """
 
 # line 13 empty for good luck
@@ -24,9 +20,15 @@ import matplotlib.font_manager as fm
 from skimage.filters import sobel
 
 def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None, idxs = None):
-    # ax    :   three axes
-    # vol   : 3D numpy array
-    # ds    : DataFile object
+    """View 3 images drawn from planes through axis 0, 1, and 2 at indices listed (idx). Do this for a DataFile or numpy.array
+    
+    :param matplotlib.axes ax:   three axes  
+    
+    :param numpy.array vol   : 3D numpy array  
+    
+    :param DataFile ds: If vol is provided, ignore DataFile, else read from this DataFile  
+    
+    """
 
     if ax is None:
         fig, ax = plt.subplots(1,3)
@@ -37,6 +39,18 @@ def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None
     return ax
 
 def get_orthoplanes(ds = None, vol = None, idxs = None):
+    """Return 3 images drawn from planes through axis 0, 1, and 2 at indices listed (idx). Do this for a DataFile or numpy.array
+    
+    :return: images at three midplanes
+    :rtype: list
+    
+    :param matplotlib.axes ax:   three axes  
+    
+    :param numpy.array vol   : 3D numpy array  
+    
+    :param DataFile ds: If vol is provided, ignore DataFile, else read from this DataFile  
+    
+    """
     
     if vol is not None:
         if idxs is None: idxs = [vol.shape[i]//2 for i in range(3)]
@@ -48,10 +62,19 @@ def get_orthoplanes(ds = None, vol = None, idxs = None):
     return imgs    
 
 def edge_plot(img, seg_img, ax, color = [0,255,0]):
-    # img: grayscale image of any shape (Y,X)
-    # seg_img: corresponding segmented image
-    # ax: matplotlib axis
-    # color: RGB values
+    """
+    Show edge-map of segmented map overlain on greyscale image.  
+    
+    :param numpy.array img: grayscale image of any shape (Y,X)  
+    
+    :param numpy.array seg_img: corresponding segmented image  
+    
+    :param matplotlib.axes ax: One axis object to plot into  
+    
+    :param list color: list of the 3 RGB values
+    
+    """
+    
     img = (255*((img - img.min()) / (img.max() - img.min()))).astype(np.uint8)
     img = np.concatenate([img[...,np.newaxis]]*3, axis = -1)
 #     sob_img = IP.calc_sobel(np.copy(seg_img))[0]
@@ -65,10 +88,21 @@ def edge_plot(img, seg_img, ax, color = [0,255,0]):
     return ax
 
 def seg_plot(img, seg_img, ax, alpha = 0.3, cmap = 'gray'):
-    # img: grayscale image of any shape (Y,X)
-    # seg_img: corresponding segmented image
-    # ax: matplotlib axis
-    # alpha : blending value
+
+    """
+    Show edge-map of segmented map overlain on greyscale image.  
+    
+    :param numpy.array img: grayscale image of any shape (Y,X)  
+    
+    :param numpy.array seg_img: corresponding segmented image  
+    
+    :param matplotlib.axes ax: One axis object to plot into  
+    
+    :param float alpha : blending value
+    
+    """
+    
+    
     img = (255*((img - img.min()) / (img.max() - img.min()))).astype(np.uint8)
     ax.imshow(img, cmap = cmap)
     ax.imshow(seg_img, cmap = 'copper', alpha = alpha)
@@ -78,11 +112,16 @@ def seg_plot(img, seg_img, ax, alpha = 0.3, cmap = 'gray'):
 
 def add_scalebar(ax, bar_len, resolution, units = 'um', n_dec = 0, pad = 0.35, \
                  fontsize = 16, frameon = True, color = 'black', loc = 'lower center'):
+    """
+    :param float bar_len: length of bar, e.g. 100 micron  
     
-    # bar_len      : float, length of bar, e.g. 100 micron
-    # resolution   : float, pixel size, in units/pixel, e.g. 1.1 microns / pixel
-    # units        : str, what units?
-    # n_dec        : number of decimals in number displayed below scalebar
+    :param float resolution: pixel size, in units/pixel, e.g. 1.1 microns / pixel  
+    
+    :param str units: units, e.g. 'um'  
+    
+    :param int n_dec: number of decimals in number displayed below scalebar  
+    
+    """
 
     fontprops = fm.FontProperties(size=fontsize)
     n_pix = bar_len/resolution

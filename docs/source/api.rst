@@ -6,7 +6,7 @@ API reference
 .. toctree::
 
    api/seg_utils
-   api/data_utils
+   api/data_utils/data_io
    api/train_utils
    api/viewer
         

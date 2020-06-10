@@ -2,8 +2,8 @@
 ==========================
 
 .. automodule:: ct_segnet.data_utils.data_io
-   :members:
-   :show-inheritance:
+   :members: DataFile, Parallelize
+        
 
 
    

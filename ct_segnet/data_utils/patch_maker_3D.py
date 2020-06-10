@@ -19,7 +19,7 @@ def apply_Affine(vol, M, T = None, order = 1):
     # M       : 3x3 array as the transform matrix
     # T      : 1x3 array as the translation matrix. None if no translation
     
-    return affine_transform(vol, M, T = T if T is not None else np.zeros(3), order = order)
+    return affine_transform(vol, M, T if T is not None else np.zeros(3), order = order)
 
 def resize_volume(vol, new_shape, order = None):
 

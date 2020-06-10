@@ -10,7 +10,7 @@ fCNN architecture
 
 CTSegNet deploys unique Unet-like models trained with focal loss to provide accuracy with reduced number of convolutional layers. The methodology and performance metrics are discussed in :cite:`Tekawade:19`.
 
-Here is a sample architecture that you can build using the model_utils sub-module in CTSegNet. We will refer to it as Unet-242 because of the 2-4-2 implementation of pooling layers.
+Here is an example architecture that you can build using the model_utils sub-module in CTSegNet. We will refer to it as Unet-242 because of the 2-4-2 implementation of pooling layers.
 
 .. image:: img/Unet242.png
    :width: 320px
@@ -19,7 +19,7 @@ Here is a sample architecture that you can build using the model_utils sub-modul
 What is unique about CTSegNet?
 ------------------------------
 
-While Unet-based segmentation is now commonplace, it is primarily limited to 2D data since 3D convolutional layers require prohibitively large GPU memory during training. Our approach efficiently exploits 2D fCNNs for 3D segmentation. You can generate multiple 3D masks by slicing along any axis, and choose a patching strategy based on the resolution-to-context trade-off in your CT data. For an fCNN with input/output images sized 512:sup:`2`, you can make patches in several ways. This a slice drawn from a scan of a gasoline injector along the transverse plane.
+While Unet-based segmentation is now commonplace, it is primarily limited to 2D data since 3D convolutional layers require prohibitively large GPU memory during training. Our approach efficiently exploits 2D fCNNs for 3D segmentation. You can generate multiple 3D masks by slicing along any axis, and choose a patching strategy based on the resolution-to-context trade-off in your CT data. For an fCNN with input/output images sized 512x512, you can make patches in several ways. This a slice drawn from a scan of a gasoline injector along the transverse plane.
 
 .. image:: img/patch_maker.png
    :width: 320px

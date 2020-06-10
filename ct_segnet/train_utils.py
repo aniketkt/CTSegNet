@@ -17,6 +17,7 @@ import random
 import pandas as pd
 from multiprocessing import cpu_count
 from ct_segnet.data_utils.data_io import Parallelize
+from ct_segnet.stats import *#ROC, calc_jac_acc, calc_dice_coeff, fidelity
 
 def _norm(y):
     if (y.max() != 1.0) | (y.min() != 0.0):
@@ -25,10 +26,14 @@ def _norm(y):
 
 def data_generator(X, Y, batch_size):
     """
-    Generator that yields randomly sampled data pairs of size batch_size. X, Y are DataFile instance pairs of train / test / validation data.
-    :param X: Input images
-    :param Y: Ground truth segmentation
-    :return: X, Y numpy arrays each of shape (n_batch, ny, ny) 
+    Generator that yields randomly sampled data pairs of size batch_size. X, Y are DataFile instance pairs of train / test / validation data.  
+    
+    :param X: Input images  
+    
+    :param Y: Ground truth segmentation  
+    
+    :return: X, Y numpy arrays each of shape (n_batch, ny, ny)  
+    
     """
     while True:
         idxs = sorted(random.sample(range(X.d_shape[0]), batch_size))
@@ -39,16 +44,21 @@ def data_generator(X, Y, batch_size):
         yield (x[...,np.newaxis], y[...,np.newaxis])
 
 class Logger(keras.callbacks.Callback):
-    """
-    An instance of Logger can be passed to keras model.fit to log stuff at epochs.
-    :param model_paths: dict, with keys = ["name", "history", "file"]
-    :param Xtest: DataFile instance of input images from test data for calculating model accuracy
-    :param Ytest: DataFile instance of corresponding ground truth segmentation map from test data
-    :param pandas.DataFrame df_prev: If retraining, pass previous epochs data
-    :param int N: autosave frequency (in epochs)
-    :n_test: int, number of test image pairs to be sampled every epoch
+    """  
+    An instance of Logger can be passed to keras model.fit to log stuff at epochs.  
     
-        
+    :param model_paths: dict, with keys = ["name", "history", "file"]  
+    
+    :param DataFile Xtest: input images from test data for calculating model accuracy  
+    
+    :param DataFile Ytest: ground truth segmentation map from test data  
+    
+    :param pandas.DataFrame df_prev: If retraining, pass previous epochs data  
+    
+    :param int N: autosave frequency (in epochs)  
+    
+    :param int n_test: number of test image pairs to be sampled every epoch  
+    
     """
     def __init__(self, Xtest, Ytest, model_paths, N, df_prev = None, n_test = None):
         
@@ -159,7 +169,6 @@ class Logger(keras.callbacks.Callback):
 
 def save_datasnaps(dg, model_history, n_imgs = 20):
     """
-    :meta private:
     """
     if not os.path.exists(os.path.join(model_history,"data_snaps")):
         os.makedirs(os.path.join(model_history,"data_snaps"))
@@ -184,92 +193,13 @@ def save_datasnaps(dg, model_history, n_imgs = 20):
 
 
 
-def ROC(thresh, y_true = None, y_pred = None):
-    """
-    Calculate receiver Operating Characteristics (ROC) curve
-    
-    Parameters
-    ----------
-    thresh : float
-            threshold value
-    y_true : ndarray
-            ground truth segmentation map (ny, nx)
-    y_pred : ndarray
-            predicted segmentation map (ny, nx)
-    
-    """
-    y_p = np.zeros_like(y_pred)
-    y_p[y_pred > thresh] = 1
-    y_true = np.copy(y_true)
-
-    TN = np.sum((1-y_true)*(1-y_p)).astype(np.float32)
-    
-    FP = np.sum((1-y_true)*y_p).astype(np.float32)
-    
-    TNR = TN / (TN + FP)
-    FPR = 1 - TNR
-    
-    TP = np.sum(y_true*y_p).astype(np.float32)
-    
-    FN = np.sum(y_true*(1-y_p)).astype(np.float32)
-    
-    TPR = TP / (TP +  FN)
-    
-    return (FPR, TPR)
 
 
-def calc_jac_acc(y_true, y_pred):
-    """Jaccard accuracy or Intersection over Union
-    :meta private:
-    """
-    y_pred = np.round(np.copy(y_pred))
-    jac_acc = (np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) - np.sum(y_pred*y_true) + 1)
-    return jac_acc
-
-def calc_dice_coeff(y_true, y_pred):
-    """Dice coefficient
-    :meta private:
-    """
-    y_pred = np.round(np.copy(y_pred))
-    
-    dice = (2*np.sum(y_pred*y_true) + 1) / (np.sum(y_pred) + np.sum(y_true) + 1)
-    return dice
-
-def fidelity(y_true, y_pred, tolerance = 0.95):
-    """
-    Fidelity is number of images with IoU > tolerance
-    
-    Parameters
-    ----------
-    tolerance : float
-                tolerance (default  = 0.95)
-    y_true    : ndarray
-                ground truth segmentation map (ny, nx)
-    y_pred    : ndarray
-                predicted segmentation map (ny, nx)
-    
-    """
-
-    XY = [(y_true[ii], y_pred[ii]) for ii in range(y_true.shape[0])]
-    del y_true
-    del y_pred
-    
-    jac_acc = np.asarray(Parallelize(XY, calc_jac_acc, procs = cpu_count()))
-    
-    mean_IoU = np.mean(jac_acc)
-
-    jac_fid = np.zeros_like(jac_acc)
-    jac_fid[jac_acc > tolerance] = 1
-    jac_fid = np.sum(jac_fid).astype(np.float32) / np.size(jac_acc)
-    
-    
-    return jac_fid, mean_IoU, jac_acc
     
     
 
 def save_results(dg, model_results, segmenter):
     """Save some results on test images into a folder in the path to model repo
-    :meta private:
     """
     x_test, y_test = next(dg)
     y_pred = segmenter.predict(x_test)

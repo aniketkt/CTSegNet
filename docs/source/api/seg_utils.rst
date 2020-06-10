@@ -2,8 +2,7 @@
 ==========================
 
 .. automodule:: ct_segnet.seg_utils
-   :members:
-   :show-inheritance:
+   :members: Segmenter, process_data
 
 
    

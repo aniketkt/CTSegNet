@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Nov 16 17:13:22 2019
+CTSegNet is more than a 2D CNN model - it's a 3D Segmenter that uses 2D CNNs. The set_utils.py defines the Segmenter class that wraps over a keras U-net-like model (defined by models.py), integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow. To slice a 3D volume, manipulations such as 45 deg rotations, orthogonal slicing, patch extraction and stitching are performed.
 
-@author: atekawade
-
-CTSegNet is more than a 2D CNN model - it's a 3D Segmenter that uses 2D CNNs. The set_utils.py defines the Segmenter class that wraps over a keras U-net-like model (defined by models.py), integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow. To slice a 3D volume, we manipulations such as 45 deg rotations, orthogonal slicing, patch extraction and stitching.
 """
 
 import sys
@@ -37,14 +34,18 @@ def message(_str):
 
 
 class Segmenter():
-    """The Segmenter class wraps over a keras model, integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow.
+    """The Segmenter class wraps over a keras model, integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow.  
+    
+    :param model:  keras model with input shape = out shape = (ny, nx, 1)  
+    
+    :type model: tf.keras.model  
+    
+    :param str model_filename:  path to keras model file (e.g. "model_1.h5")  
+    
+    :param str model_name:  (optional) just a name for the model  
+    
     """
     def __init__(self, model_filename = None, model = None, model_name = "unknown"):
-        """
-        model          :  keras model with input shape = out shape = (ny, nx, 1)
-        model_filename :  path to keras model file (e.g. "model_1.h5")
-        model_name     :  (optional) just a name for the model
-        """
         if model is not None:
             self.model = model
             self.model_name = model_name
@@ -54,11 +55,18 @@ class Segmenter():
 
     def seg_image(self, p, max_patches = None, overlap = None):
 
-        """function to test the segmenter on arbitrary sized 2D image;\
-        extracts patches shape = input shape of 2D CNN
-        max_patches : tuple, (my, mx) are # of patches along Y, X in image
-        p           : greyscale image of shape (ny, nx)
-        overlap     : tuple or int, number of overlapping pixels between patches
+        """Test the segmenter on arbitrary sized 2D image. This method extracts patches of shape same as the input shape of 2D CNN, segments them and stitches them back to form the original image.  
+        
+        :param tuple max_patches: (my, mx) are # of patches along Y, X in image  
+        
+        :param p: greyscale image of shape (ny, nx)  
+        
+        :type p: numpy.array
+        
+        :param overlap: number of overlapping pixels between patches  
+        
+        :type overlap: tuple or int  
+        
         """
         # Handle patching parameter inputs
         patch_size = self.model.output_shape[1:-1]    
@@ -107,11 +115,18 @@ class Segmenter():
                   nprocs = None, arr_split = 1):
         """Segment a volume of shape (nslices, ny, nx). The 2D keras model passes\
         along nslices, segmenting images (ny, nx) with a patch size defined by input \
-        to the model
-        max_patches   : tuple, (my, mx) are # of patches along Y, X in image (ny, nx)
-        overlap       : tuple or int, number of overlapping pixels between patches
-        nprocs        : number of CPU processors for multiprocessing Pool
-        arr_split     : breakdown chunk into arr_split number of smaller chunks
+        to the model  
+        
+        :param tuple max_patches: (my, mx) are # of patches along Y, X in image (ny, nx)
+
+        :param overlap: number of overlapping pixels between patches  
+        
+        :type overlap: tuple or int  
+
+        :param int nprocs: number of CPU processors for multiprocessing Pool  
+        
+        :param int arr_split: breakdown chunk into arr_split number of smaller chunks  
+        
         """
         
         # Handle patching parameter inputs
@@ -175,9 +190,12 @@ class Segmenter():
 
 def get_repadding(crops, d_shape):
 
-    """Returns padding values to restore 3D np array after it was cropped.
-    crops    :   3 tuples in a list [(nz1,nz2), (ny1,ny2), (nx1,nx2)]
-    d_shape  :   original shape of 3D array
+    """Returns padding values to restore 3D np array after it was cropped.  
+    
+    :param list crops: 3 tuples in a list [(nz1,nz2), (ny1,ny2), (nx1,nx2)]  
+    
+    :param tuple d_shape: original shape of 3D array  
+    
     """
     pads = []
     for idx, crop in enumerate(crops):
@@ -199,9 +217,14 @@ def get_repadding(crops, d_shape):
 
                 
 def _rotate(imgs, angle):
-    """Just a wrapper for cv2's affine transform for rotating an image about center
-    imgs   :   volume or series of images (n, ny, nx)
-    angle  :   float, value to rotate image about center, along (ny,nx)
+    """Just a wrapper for cv2's affine transform for rotating an image about center  
+    
+    :param imgs:   volume or series of images (n, ny, nx)  
+    
+    :type imgs: numpy.array  
+    
+    :param float angle: value to rotate image about center, along (ny,nx)  
+    
     """
     rows, cols = imgs[0].shape
     M = cv2.getRotationMatrix2D((cols/2,rows/2), angle,1)
@@ -211,18 +234,32 @@ def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
                  crops = None, arr_split = 1):
     """Segment a volume of shape (nz, ny, nx). The 2D keras model passes
     along either axis (0,1,2), segmenting images with a patch size defined by input
-    to the model in the segmenter class.
-    max_patches     : tuple, (?,?) number of patches along each axis of 2D image
-    overlap         : tuple or int, number of overlapping pixels between patches
-    slice_axis      : int (0,1,2); axis along which to draw slices
-    crops           : list of three tuples; each tuple (start, stop) will
-                      define a python slice for the respective axis
-    rot_angle       : rotate volume around Z axis before slicing along any given axis.
-                      Note this is redundant if slice_axis = 0
+    to the model in the segmenter class.  
+
+    :param tuple max_patches: (my, mx) are # of patches along Y, X in image (ny, nx)
+
+    :param overlap: number of overlapping pixels between patches  
+
+    :type overlap: tuple or int  
+
+    :param int nprocs: number of CPU processors for multiprocessing Pool  
+
+    :param int arr_split: breakdown chunk into arr_split number of smaller chunks  
+
     
-    nprocs          : number of CPU processors for multiprocessing Pool
-    arr_split       : breakdown chunk into arr_split number of smaller chunks
-    preprocess_func : pass a preprocessing function that applies a 2D filter on an image
+    :param int slice_axis: (0,1,2); axis along which to draw slices  
+    
+    :param list crops: list of three tuples; each tuple (start, stop) will
+                      define a python slice for the respective axis  
+                      
+    :param float rot_angle: (degrees) rotate volume around Z axis before slicing along any given axis. Note this is redundant if slice_axis = 0  
+    
+    :param int nprocs: number of CPU processors for multiprocessing Pool
+    
+    :param int arr_split: breakdown chunk into arr_split number of smaller chunks  
+    
+    :param func preprocess_func: pass a preprocessing function that applies a 2D filter on an image  
+    
     """
     if nprocs is None:
         nprocs = 4
