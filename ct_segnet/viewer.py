@@ -41,7 +41,8 @@ def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None
 def get_orthoplanes(ds = None, vol = None, idxs = None):
     """Return 3 images drawn from planes through axis 0, 1, and 2 at indices listed (idx). Do this for a DataFile or numpy.array
     
-    :return: images at three midplanes
+    :return: images at three midplanes  
+    
     :rtype: list
     
     :param matplotlib.axes ax:   three axes  

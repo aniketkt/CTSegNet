@@ -17,8 +17,6 @@ from ct_segnet.data_utils.data_io import Parallelize
 
 import matplotlib.pyplot as plt
 
-from tomopy import circ_mask
-
 def _get_metalair(img, seg_img):
 
     """
@@ -26,10 +24,9 @@ def _get_metalair(img, seg_img):
     """
     img = np.copy(img).astype(np.float32)
     seg_img = seg_img.astype(bool)
-    mask = circ_mask(np.ones_like(img, dtype = np.uint8)[np.newaxis,...], 0, ratio = 0.92, val = 0)[0].astype(bool)
     
-    metal = seg_img & mask
-    air = (~seg_img) & mask
+    metal = seg_img
+    air = (~seg_img)
     return metal, air
     
 def renormalize(img, seg_img, metal = None, air = None):
