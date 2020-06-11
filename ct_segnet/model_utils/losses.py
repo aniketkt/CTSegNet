@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Jun 12 14:14:34 2019
+This module defines some custom loss functions and metrics that are used to train and evaluate a U-net-like tf.Keras.model. This require the input to be a tensor.
 
-@author: atekawade
+Note: Some of these metrics are implemented in ct_segnet.stats to receive numpy.array as inputs.  
+
 """
 
 
@@ -17,8 +18,18 @@ alpha = 0.75
 gamma = 2.0
 
 def IoU(y_true, y_pred):
+    """
+    :return: intersection over union accuracy
     
-    # Define intersection over union accuracy
+    Parameters
+    ----------
+    
+    y_true  : tensor
+            Ground truth tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    y_pred  : tensor
+            Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    
+    """
     
     y_pred = K.round(y_pred)
     intersection = K.sum(y_true*y_pred)
@@ -29,6 +40,18 @@ def IoU(y_true, y_pred):
 
 
 def acc_zeros(y_true, y_pred):
+    """
+    :return: accuracy in predicting zero values = TN/(TN + FP)
+    
+    Parameters
+    ----------
+    
+    y_true  : tensor
+            Ground truth tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    y_pred  : tensor
+            Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    
+    """
     
     # Define accuracy of zeros
     y_pred = K.round(y_pred)
@@ -42,6 +65,18 @@ def acc_zeros(y_true, y_pred):
     return p
 
 def acc_ones(y_true, y_pred):
+    """
+    :return: accuracy in predicting ones = TP/(TP + FN)
+    
+    Parameters
+    ----------
+    
+    y_true  : tensor
+            Ground truth tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    y_pred  : tensor
+            Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    
+    """
     
     # Define accuracy of ones
     y_pred = K.round(y_pred)
@@ -51,34 +86,79 @@ def acc_ones(y_true, y_pred):
     return r
 
 
-def binary_lossmap(y_true, y_pred):
+def _binary_lossmap(y_true, y_pred):
     # y_true, y_pred are tensors of shape (batch_size, img_h, img_w, n_channels)
     pt_1 = tf.where(tf.equal(y_true, 1), y_pred, tf.ones_like(y_pred))
     pt_0 = tf.where(tf.equal(y_true, 0), y_pred, tf.zeros_like(y_pred))
     return pt_1, pt_0
 
 def my_binary_crossentropy(y_true, y_pred):
+    """
+    :return: loss value
+    
+    This is my own implementation of binary cross-entropy. Nothing special.
+    
+    Parameters
+    ----------
+    
+    y_true  : tensor
+            Ground truth tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    y_pred  : tensor
+            Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    
+    """
 
-    pt_1, pt_0 = binary_lossmap(y_true, y_pred)
+    pt_1, pt_0 = _binary_lossmap(y_true, y_pred)
     loss_map = -K.log(pt_1 + eps)-K.log(1. - pt_0 + eps)
     return tf.reduce_mean(loss_map)
 
 def focal_loss(y_true, y_pred):
+    """
+    :return: loss value
+    
+    Focal loss is defined here: https://arxiv.org/abs/1708.02002
+    Using this provides improved fidelity in unbalanced datasets: 
+    Tekawade et al. https://doi.org/10.1117/12.2540442
+    
+    
+    Parameters
+    ----------
+    
+    y_true  : tensor
+            Ground truth tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    y_pred  : tensor
+            Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    
+    """
 
-    pt_1, pt_0 = binary_lossmap(y_true, y_pred)
+    pt_1, pt_0 = _binary_lossmap(y_true, y_pred)
     loss_map = -alpha*K.log(pt_1 + eps)*K.pow(1. - pt_1,gamma) - (1-alpha)*K.log(1. - pt_0 + eps)*K.pow(pt_0,gamma)
     return tf.reduce_mean(loss_map)
 
 
 def weighted_crossentropy(y_true, y_pred):
+    """
+    :return: loss value
+    
+    Weighted cross-entropy allows prioritizing accuracy in a certain class (either 1s or 0s).
+    
+    Parameters
+    ----------
+    
+    y_true  : tensor
+            Ground truth tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    y_pred  : tensor
+            Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
+    
+    """
 
-    pt_1, pt_0 = binary_lossmap(y_true, y_pred)
+    pt_1, pt_0 = _binary_lossmap(y_true, y_pred)
     loss_map = -alpha*K.log(pt_1 + eps)-(1-alpha)*K.log(1. - pt_0 + eps)
     loss_map *= 2.0
     return tf.reduce_mean(loss_map)
 
 
-def stdize_img(img):
+def _stdize_img(img):
     
     eps = tf.constant(1e-12, dtype = 'float32')
     #mean = tf.reduce_mean(img)
@@ -90,12 +170,12 @@ def stdize_img(img):
     img = (img - min_ )  / (max_ - min_ + eps)
     return img
 
-def standardize(imgs):
+def _standardize(imgs):
     
-    return tf.map_fn(stdize_img, imgs)
+    return tf.map_fn(_stdize_img, imgs)
     
 
-objects = [IoU, acc_zeros, acc_ones, focal_loss, my_binary_crossentropy, weighted_crossentropy, standardize, stdize_img]
+objects = [IoU, acc_zeros, acc_ones, focal_loss, my_binary_crossentropy, weighted_crossentropy, _standardize, _stdize_img]
 
 custom_objects_dict = {'tf': tf}
 for item in objects:

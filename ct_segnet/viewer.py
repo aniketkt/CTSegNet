@@ -24,7 +24,7 @@ def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None
     
     :param matplotlib.axes ax:   three axes  
     
-    :param numpy.array vol   : 3D numpy array  
+    :param numpy.array vol: 3D numpy array  
     
     :param DataFile ds: If vol is provided, ignore DataFile, else read from this DataFile  
     
