@@ -30,11 +30,22 @@ def IoU(y_true, y_pred):
             Predicted tensor of shape (batch_size, n_rows, n_cols, n_channels)
     
     """
-    
+#     this is an old implementation that does not assume ignored pixels
+#     y_pred = K.round(y_pred)
+#     intersection = K.sum(y_true*y_pred)
+#     union = K.sum(y_pred) + K.sum(y_true) - intersection
+#     acc = (intersection + 1.) / (union + 1.)
+
+#     this implementation assumes ignored pixel labels > 1 in y_true
     y_pred = K.round(y_pred)
-    intersection = K.sum(y_true*y_pred)
-    union = K.sum(y_pred) + K.sum(y_true) - intersection
+    y_pred = tf.cast(y_pred, tf.int32)
+    y_true = tf.cast(y_true, tf.int32)
+    intersection = K.sum(tf.where(tf.equal(y_true,1), y_true*y_pred, 0))
+    union = K.sum(y_pred) + K.sum(tf.where(tf.equal(y_true,1), 1, 0)) - intersection
+    intersection = tf.cast(intersection, tf.float32)
+    union = tf.cast(union, tf.float32)
     acc = (intersection + 1.) / (union + 1.)
+    
     return acc
 
 
@@ -55,13 +66,21 @@ def acc_zeros(y_true, y_pred):
     
     # Define accuracy of zeros
     y_pred = K.round(y_pred)
-    #true_positives = K.sum(y_true*y_pred)
-    #false_positives = K.sum((1-y_true)*y_pred)
-    #p = (true_positives + eps) / (true_positives + false_positives + eps)
+    y_pred = tf.cast(y_pred, tf.int32)
+    y_true = tf.cast(y_true, tf.int32)
+
     
-    true_negatives = K.sum((1-y_true)*(1-y_pred))
-    false_positives = K.sum((1-y_true)*y_pred)
+#     true_negatives = K.sum((1-y_true)*(1-y_pred))
+#     false_positives = K.sum((1-y_true)*y_pred)
+#     p = (true_negatives + eps) / (true_negatives + false_positives + eps)
+
+#     This version assumes ignored pixels
+    true_negatives = K.sum(tf.where(tf.equal(y_true,0), 1, 0) * (1-y_pred))
+    false_positives = K.sum(tf.where(tf.equal(y_true,0), 1 ,0) * y_pred)
+    true_negatives = tf.cast(true_negatives, tf.float32)
+    false_positives = tf.cast(false_positives, tf.float32)
     p = (true_negatives + eps) / (true_negatives + false_positives + eps)
+    
     return p
 
 def acc_ones(y_true, y_pred):
@@ -80,9 +99,16 @@ def acc_ones(y_true, y_pred):
     
     # Define accuracy of ones
     y_pred = K.round(y_pred)
-    true_positives = K.sum(y_true*y_pred)
-    false_negatives = K.sum(y_true*(1-y_pred))
+    y_pred = tf.cast(y_pred, tf.int32)
+    y_true = tf.cast(y_true, tf.int32)
+
+    
+    true_positives = K.sum(tf.where(tf.equal(y_true,1), 1, 0)*y_pred)
+    false_negatives = K.sum(    tf.where(tf.equal(y_true,1), 1, 0)       * (1-y_pred))
+    true_positives = tf.cast(true_positives, tf.float32)
+    false_negatives = tf.cast(false_negatives, tf.float32)
     r = (true_positives + eps) / (true_positives + false_negatives + eps)
+    
     return r
 
 
@@ -158,7 +184,7 @@ def weighted_crossentropy(y_true, y_pred):
     return tf.reduce_mean(loss_map)
 
 
-def _stdize_img(img):
+def stdize_img(img):
     
     eps = tf.constant(1e-12, dtype = 'float32')
     #mean = tf.reduce_mean(img)
@@ -170,12 +196,11 @@ def _stdize_img(img):
     img = (img - min_ )  / (max_ - min_ + eps)
     return img
 
-def _standardize(imgs):
+def standardize(imgs):
     
-    return tf.map_fn(_stdize_img, imgs)
+    return tf.map_fn(stdize_img, imgs)
     
-
-objects = [IoU, acc_zeros, acc_ones, focal_loss, my_binary_crossentropy, weighted_crossentropy, _standardize, _stdize_img]
+objects = [IoU, acc_zeros, acc_ones, focal_loss, my_binary_crossentropy, weighted_crossentropy, stdize_img, standardize]
 
 custom_objects_dict = {'tf': tf}
 for item in objects:

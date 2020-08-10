@@ -16,28 +16,58 @@ import pandas as pd
 from multiprocessing import cpu_count
 from ct_segnet.data_utils.data_io import Parallelize
 from ct_segnet.stats import *#ROC, calc_jac_acc, calc_dice_coeff, fidelity
+from ct_segnet.data_utils.data_augmenter import run_augmenter
 
 def _norm(y):
     if (y.max() != 1.0) | (y.min() != 0.0):
         y = (y - np.min(y)) / (np.max(y) - np.min(y))
     return y.astype(np.uint8)
 
-def data_generator(X, Y, batch_size):
+def data_generator(X, Y, batch_size, \
+                   check_norm = False, \
+                   augmenter_todo = None, \
+                   min_SNR = 2.0, \
+                   inplace = False, nprocs = 1):
     """
     Generator that yields randomly sampled data pairs of size batch_size. X, Y are DataFile instance pairs of train / test / validation data.  
     
-    :param X: Input images  
+    Parameters
+    ----------
+    X: DataFile
+        Input images  
     
-    :param Y: Ground truth segmentation  
+    Y: DataFile
+        Ground truth segmentation  
+        
+    check_norm : bool
+        Ensure that segmentation labels are 0 and 1 only. Should be False if your ground truth data contains ignored pixels.  
+        
+    augmenter_todo  : list
+        list of strings from "rotate", "flip", "gaussian noise", "invert intensity"
     
-    :return: X, Y numpy arrays each of shape (n_batch, ny, ny)  
+    min_SNR : float
+        minimum allowable signal-to-noise ratio (SNR)
+    
+    Returns
+    -------
+    tuple
+        X, Y numpy arrays each of shape (n_batch, ny, ny)  
     
     """
     while True:
         idxs = sorted(random.sample(range(X.d_shape[0]), batch_size))
         x = X.read_sequence(idxs)
         y = Y.read_sequence(idxs)
-        y = _norm(y)
+        
+        if check_norm:
+            y = _norm(y)
+        
+        if augmenter_todo is not None:
+            x, y = run_augmenter(x, y, \
+                                 min_SNR = min_SNR, \
+                                 to_do = augmenter_todo, \
+                                 inplace = inplace, \
+                                 nprocs = nprocs)
 
         yield (x[...,np.newaxis], y[...,np.newaxis])
 
@@ -45,22 +75,34 @@ class Logger(keras.callbacks.Callback):
     """  
     An instance of Logger can be passed to keras model.fit to log stuff at epochs.  
     
-    :param model_paths: dict, with keys = ["name", "history", "file"]  
+    Parameters
+    ----------
+    model_paths : dict
+        with keys = ["name", "history", "file"]  
     
-    :param DataFile Xtest: input images from test data for calculating model accuracy  
+    Xtest : DataFile
+        input images from test data for calculating model accuracy  
     
-    :param DataFile Ytest: ground truth segmentation map from test data  
+    Ytest : DataFile
+        ground truth segmentation map from test data  
     
-    :param pandas.DataFrame df_prev: If retraining, pass previous epochs data  
+    df_prev : pandas.DataFrame
+        If retraining, pass previous epochs data  
     
-    :param int N: autosave frequency (in epochs)  
+    N : int
+        autosave frequency (in epochs)  
     
-    :param int n_test: number of test image pairs to be sampled every epoch  
+    n_test : int
+        number of test image pairs to be sampled every epoch  
     
     """
-    def __init__(self, Xtest, Ytest, model_paths, N, df_prev = None, n_test = None):
+    def __init__(self, Xtest, Ytest, model_paths, N,\
+                 df_prev = None, n_test = None, \
+                 check_norm = False, augmenter_todo = None,):
         
-        self.test_dg = data_generator(Xtest, Ytest, n_test)
+        self.test_dg = data_generator(Xtest, Ytest, n_test, \
+                                      check_norm = check_norm, \
+                                      augmenter_todo = augmenter_todo)
         self.N = N
         self.df_prev = df_prev
         self.model_name = model_paths['name']
@@ -208,7 +250,7 @@ def save_results(dg, model_results, segmenter):
     if not os.path.exists(os.path.join(model_results,"data_snaps")):
         os.makedirs(os.path.join(model_results,"data_snaps"))
     
-    for ii in x_test.shape[0]:
+    for ii in range(x_test.shape[0]):
             
             fig, ax = plt.subplots(1,3, figsize = (9,3))
             ax[0].axis('off')

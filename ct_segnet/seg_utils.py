@@ -165,6 +165,7 @@ class Segmenter():
         message("\tCurrent d shape:" + str(np.shape(p)))
         p = self.model.predict(p[...,np.newaxis])
         p = p[...,0]
+        p = np.asarray(np.round(p)).astype(np.uint8)
         
         # Now, reshape the data back...
         p = p.reshape(dataset_shape)
@@ -186,7 +187,7 @@ class Segmenter():
         message("\tCurrent d shape:" + str(np.shape(p)))
         p = np.asarray([cv2.resize(p[ii], (orig_shape[1], orig_shape[0]))\
                         for ii in range(p.shape[0])])
-        return np.asarray(np.round(p)).astype(np.uint8)
+        return p
 
 def get_repadding(crops, d_shape):
 

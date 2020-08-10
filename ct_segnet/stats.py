@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-A module for estimating signal-to-noise ratio (SNR) for binarizable datasets.
+A module for estimating
+    1. signal-to-noise ratio (SNR) for binarizable datasets.  
+    2. accuracy metrics for segmentation maps.  
 
 """
 
@@ -12,94 +14,61 @@ from ct_segnet.data_utils.data_io import Parallelize
 
 import matplotlib.pyplot as plt
 
-def _get_metalair(img, seg_img):
-
-    """
-    input a mask with ones in metal and zeros in air  
-    
-    """
-    img = np.copy(img).astype(np.float32)
-    seg_img = seg_img.astype(bool)
-    
-    metal = seg_img
-    air = (~seg_img)
-    return metal, air
-    
-def renormalize(img, seg_img, metal = None, air = None):
-    """
-    :return: normalized image such that the mean value of segment 1 ("metal") is ~ 1 while that of 0 ("air") is ~ 0.  
-    
-    :param numpy.array img: raw input image  
-
-    :param numpy.array seg_img: segmented image  
-    
-    """
-    if (metal is None) | (air is None):
-        metal, air = _get_metalair(img, seg_img)
-    min_val = np.mean(img[np.where(air)])
-    max_val = np.mean(img[np.where(metal)])
-    normed = (img - min_val) / (max_val - min_val)
-    return normed
-
-def SNR_data(img, seg_img):
-    """
-    :return: data vector that calculates SNR (for debugging):  
-
-    data = [mean_air, mean_metal, std_air, std_metal]  
-    
-    SNR = sqrt(mean_metal)/sqrt(std_air^^2 + std_metal^^2)  
-
-    :param numpy.array img: raw input image  
-
-    :param numpy.array seg_img: segmented image  
-
-    """
-    metal, air = _get_metalair(img, seg_img)
-    img = renormalize(img, seg_img, metal = metal, air = air)
-    
-    air_img = np.copy(img)
-    air_img[np.where(~air)] = np.nan
-    
-    metal_img = np.copy(img)
-    metal_img[np.where(~metal)] = np.nan
-    data = [np.nanmean(air_img), np.nanmean(metal_img), np.nanstd(air_img), np.nanstd(metal_img)]
-    
-    return data
 
 def calc_SNR(img, seg_img):
     """
-    :return: float SNR of img w.r.t seg_img  
-    
-    SNR = sqrt(mean_metal)/sqrt(std_air^^2 + std_metal^^2)  
-    
-    seg_img is used to estimate mean / std of the segmented phases, called "metal" (pixel value = 1) and "air" (pixel value = 0)  
+    SNR =  1     /  s*sqrt(std0^^2 + std1^^2)  
+    where s = 1 / (mu1 - mu0)  
+    mu1, std1 and mu0, std0 are the mean / std values for each of the segmented regions respectively (pix value = 1) and (pix value = 0).  
+    seg_img is used as mask to determine stats in each region.  
 
-    :param numpy.array img: raw input image  
+    Parameters
+    ----------
+    img : np.array
+        raw input image (2D or 3D)
+    
+    seg_img : np.array
+        segmentation map (2D or 3D)
 
-    :param numpy.array seg_img: segmented image  
+    Returns
+    -------
+    float
+        SNR of img w.r.t seg_img  
 
     """
-    data = SNR_data(img, seg_img)
-    S = np.sqrt((data[1])**2)
-    N = np.sqrt((data[2]**2 + data[3]**2)/2.0)
-    SNR = S/N
-    return SNR
+    pix_1 = img[seg_img == 1]
+    pix_0 = img[seg_img == 0]
+    mu1 = np.mean(pix_1)
+    mu0 = np.mean(pix_0)
+    s = abs(1/(mu1 - mu0))
+    std1 = np.std(pix_1)
+    std0 = np.std(pix_0)
+    std = np.sqrt(0.5*(std1**2 + std0**2))
+    std = s*std
+    return 1/std
+
+
 
 
 def ROC(thresh, true_img = None, seg_img = None):
     """
-    :return: FPR, TPR - Receiver Operating Characteristics (ROC) curve
-    
-    :rtype: tuple
+    Receiver Operating Characteristics (ROC) curve  
     
     Parameters
     ----------
     thresh : float
             threshold value
+            
     true_img : numpy.array
             ground truth segmentation map (ny, nx)
+            
     seg_img : numpy.array
             predicted segmentation map (ny, nx)
+    
+    Returns
+    -------
+    tuple
+        FPR, TPR        
             
     """
     y_p = np.zeros_like(seg_img)
@@ -123,52 +92,64 @@ def ROC(thresh, true_img = None, seg_img = None):
 
 def calc_jac_acc(true_img, seg_img):
     """
-    :return: Jaccard accuracy or Intersection over Union  
-    
-    :rtype: float  
-    
-    :param numpy.array seg_img: segmented image  
-
-    :param numpy.array true_img: ground truth  
-    
+    Parameters
+    ----------
+    true_img : np.array
+            ground truth segmentation map (ny, nx)
+            
+    seg_img : np.array
+            predicted segmentation map (ny, nx)
+     
+    Returns
+    -------
+    float
+        Jaccard accuracy or Intersection over Union  
     """
     seg_img = np.round(np.copy(seg_img))
-    jac_acc = (np.sum(seg_img*true_img) + 1) / (np.sum(seg_img) + np.sum(true_img) - np.sum(seg_img*true_img) + 1)
+    
+    jac_acc = (np.sum(seg_img*(true_img == 1)) + 1) / (np.sum(seg_img) + np.sum((true_img == 1)) - np.sum(seg_img*(true_img == 1)) + 1)
     return jac_acc
 
 def calc_dice_coeff(true_img, seg_img):
     """
-    :return: Dice coefficient  
-    
-    :rtype: float  
-
-    :param numpy.array seg_img: segmented image  
-
-    :param numpy.array true_img: ground truth  
+    Parameters
+    ----------
+    true_img : np.array
+            ground truth segmentation map (ny, nx)
+            
+    seg_img : np.array
+            predicted segmentation map (ny, nx)
+     
+    Returns
+    -------
+    float
+        Dice coefficient  
 
     """
     seg_img = np.round(np.copy(seg_img))
     
-    dice = (2*np.sum(seg_img*true_img) + 1) / (np.sum(seg_img) + np.sum(true_img) + 1)
+    dice = (2*np.sum(seg_img*(true_img == 1)) + 1) / (np.sum(seg_img) + np.sum((true_img == 1)) + 1)
     return dice
 
 def fidelity(true_imgs, seg_imgs, tolerance = 0.95):
     """
-    :return: fidelity  
-    
-    :rtype: float
-    
-    Fidelity is number of images with IoU > tolerance
+    Fidelity is number of images with IoU > tolerance  
     
     Parameters
     ----------
     tolerance : float
                 tolerance (default  = 0.95)
+                
     true_imgs : numpy.array
                 list of ground truth segmentation maps (nimgs, ny, nx)
+                
     seg_imgs  : numpy.array
                 list of predicted segmentation maps (nimgs, ny, nx)
-    
+     
+    Returns
+    -------
+    float
+        Fidelity  
     """
 
     XY = [(true_imgs[ii], seg_imgs[ii]) for ii in range(true_imgs.shape[0])]

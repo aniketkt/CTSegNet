@@ -248,7 +248,7 @@ def build_Unet_flex(img_shape, n_depth = 1, n_pools = 4, activation = 'lrelu', \
     inp = L.Input(img_shape)
     
     if stdinput:
-        standardizer = L.Lambda(losses._standardize)
+        standardizer = L.Lambda(losses.standardize)
         stdinp = standardizer(inp)
     else:
         stdinp = inp

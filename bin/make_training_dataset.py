@@ -47,6 +47,7 @@ def process_data(p, patch_size = None, n_patches = None, skip_fac = None, axis =
     if p.ndim != 3:
         raise ValueError("Invalid dimensions for 3D data.")
 
+
     if type(patch_size) is not tuple:
         patch_size = (patch_size, patch_size)
 
@@ -133,7 +134,7 @@ def main(args):
     slice_start = 0
     pbar = tqdm(total = n_images)
     for idx, row in df_params.iterrows():
-        p = process_data(d_seg, skip_fac = skip_fac, patch_size = args.model_size, n_patches = row['max patches'], axis = row['slice axis'])
+        p = process_data(d_seg, skip_fac = skip_fac, nprocs = args.nprocs, patch_size = args.model_size, n_patches = row['max patches'], axis = row['slice axis'])
         slice_end = p.shape[0] + slice_start
         s = slice(slice_start, slice_end)
         w_dfile_seg.write_chunk(p, axis = 0, s = s)
@@ -154,7 +155,7 @@ def main(args):
     d_recon = d_recon[slice(*args.crops[0]), slice(*args.crops[1]), slice(*args.crops[2])]
     pbar = tqdm(total = n_images)
     for idx, row in df_params.iterrows():
-        p = process_data(d_recon, skip_fac = skip_fac, patch_size = args.model_size, n_patches = row['max patches'], axis = row['slice axis'])
+        p = process_data(d_recon, skip_fac = skip_fac, nprocs = args.nprocs, patch_size = args.model_size, n_patches = row['max patches'], axis = row['slice axis'])
         slice_end = p.shape[0] + slice_start
         s = slice(slice_start, slice_end)
         w_dfile_recon.write_chunk(p, axis = 0, s = s)

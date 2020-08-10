@@ -128,7 +128,7 @@ def main(args_summary, **kwargs):
                    'history' : model_history,\
                    'file' : model_file}
     
-    logger = Logger(Xtest, Ytest, model_paths, args.autosave_freq, df_prev = df_prev, n_test = args.n_test)
+    logger = Logger(Xtest, Ytest, model_paths, args.autosave_freq, df_prev = df_prev, n_test = args.n_test, check_norm = args.check_norm, augmenter_todo = None)
     n_train = min(args.nmax_train, X.d_shape[0])
     t0 = time.time()
     
@@ -137,7 +137,14 @@ def main(args_summary, **kwargs):
         if args.fit_generator:
             steps_per_epoch = int((1- args.validation_split)*n_train//args.batch_size)
             validation_steps = int(args.validation_split*n_train//args.batch_size)
-            hist = segmenter.fit_generator(data_generator(X, Y, args.batch_size),\
+            
+            # data generator will work in 'inplace' mode (faster) and generate data of size = batch_size
+            dg = data_generator(X, Y, args.batch_size, \
+                                check_norm = args.check_norm, \
+                                augmenter_todo = args.augmenter_todo, \
+                                min_SNR = args.min_SNR, inplace = True, nprocs = 1)
+            
+            hist = segmenter.fit_generator(dg,\
                                            steps_per_epoch = steps_per_epoch,\
                                            validation_data = data_generator(X, Y, args.batch_size),\
                                            validation_steps = validation_steps,\
@@ -145,8 +152,11 @@ def main(args_summary, **kwargs):
                                            verbose = 2, \
                                            callbacks = [logger])   
         else:
-            
-            x_train, y_train = next(data_generator(X, Y, n_train))
+            dg = data_generator(X, Y, n_train, \
+                                check_norm = args.check_norm, \
+                                augmenter_todo = args.augmenter_todo, \
+                                min_SNR = args.min_SNR, inplace = False)
+            x_train, y_train = next(dg)
             hist = segmenter.fit(x = x_train, y = y_train,\
                                  verbose = 2, initial_epoch = 0, validation_split = args.validation_split,\
                                  epochs = args.n_epochs, batch_size = args.batch_size, callbacks = [logger])   
@@ -163,7 +173,12 @@ def main(args_summary, **kwargs):
         ########### EVALUATED MODEL AND SAVE SOME TEST IMAGES ############
         print("\nSaving some test images...")
         model_results = os.path.join(args.model_path, 'history', args.model_name, 'testing')
-        save_results(data_generator(Xtest, Ytest, args.n_save), model_results, segmenter)
+        dg = data_generator(Xtest, Ytest, args.n_save, \
+                            augmenter_todo = args.augmenter_todo, \
+                            min_SNR = args.min_SNR, \
+                            inplace = False, nprocs = 1)
+        
+        save_results(dg, model_results, segmenter)
         
     
     
@@ -206,6 +221,9 @@ if __name__ == "__main__":
     parser.add('--train_fname', required = True, type = str, help = 'str; filename of .hdf5 file as training set')
     parser.add('--test_fname', required = True, type = str, help = 'str; filename of .hdf5 file as testing set')
     parser.add('--data_key', required = True, type = str, help = 'str; brief description of datasets')
+    parser.add('--augmenter_todo', required = False, type = str, default = ['flip', 'rotate'], help = 'str; list of strings from rotate, flip, gaussian noise, invert intensity', nargs = '+')
+    parser.add('--min_SNR', required = False, type = float, default = 2.0, help = 'float; minimum allowable SNR for data augmentation')
+    parser.add('--check_norm', required = False, type = bool, default = False, help = 'bool; True if you pixel labels are not 1/0 (e.g. your labels are 255 and 0)')
     
     
 
