@@ -282,7 +282,7 @@ def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
 
     # Preprocess function
     if preprocess_func is not None:
-        print("\tPreprocessing on XY mapping...")
+#         print("\tPreprocessing on XY mapping...")
         p = preprocess_func(p)
 
     # Run the segmenter algorithm

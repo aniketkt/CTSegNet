@@ -257,7 +257,7 @@ class DataFile():
                 hf.create_dataset(self.data_tag, shape = self.d_shape, dtype = self.d_type, chunks = self.chunk_shape)
             _message("New hdf5 dataset %s created in file %s"%(self.data_tag, self.fname.split('/')[-1]), self.VERBOSITY > 0)
             
-    def get_stats(self):
+    def get_stats(self, return_output = False):
         """
         Print some stats about the DataFile (shape, slice size, chunking, etc.)  
         
@@ -275,9 +275,15 @@ class DataFile():
             self.d_shape = (img_z,) + img.shape
             self.d_type = img.dtype
             self.chunk_shape = None # no such attribute for tiff stacks
-            
-        _message("\n" + "#"*50 + "\n" + "Found existing %s: "%("tiff folder" if self.tiff_mode else "hdf5 file") + self.fname.split('/')[-1], self.VERBOSITY > 0)        
-        _message("Dataset shape: %s"%(str(self.d_shape)), self.VERBOSITY > 0)
+        
+        
+        str_out = "\n" + "#"*50 + "\n" + "Found existing %s: "%("tiff folder" if self.tiff_mode else "hdf5 file") + self.fname.split('/')[-1]
+        str_out = str_out + "\nDataset shape: %s"%(str(self.d_shape))
+        
+        if return_output:
+            return str_out
+        else:
+            _message(str_out, self.VERBOSITY > 0)        
             
         return
 
@@ -299,14 +305,25 @@ class DataFile():
         return
 
 
-    def show_stats(self):
+    def show_stats(self, return_output = False):
         """print dataset shape and slice-wise size
         """
-        _message("Dataset shape: %s"%(str(self.d_shape)), self.VERBOSITY > -1)
-        _message("Dataset size: %.2f GB"%self.d_size_GB, self.VERBOSITY > -1)
-        if not self.tiff_mode: _message("Chunk shape: %s"%(str(self.chunk_shape)), self.VERBOSITY > -1)
+        str_out = ""
+        str_out = str_out + "\n" + "Dataset shape: %s"%(str(self.d_shape))
+        str_out = str_out + "\n" + "Dataset size: %.2f GB"%self.d_size_GB
+        
+        if not self.tiff_mode:
+            str_out = str_out + "\n" + "Chunk shape: %s"%(str(self.chunk_shape))
+            
         for _i, _size in enumerate(self.slice_size):
-            _message("Slice size along %i: %4.2f MB"%(_i, 1000.0*_size), self.VERBOSITY > -1)
+            str_out = str_out + "\n" + "Slice size along %i: %4.2f MB"%(_i, 1000.0*_size)
+        
+        if return_output:
+            return str_out
+        else:
+            _message(str_out, self.VERBOSITY > -1)
+            return
+
         
     def est_chunking(self): # Determine the chunk shape for hdf5 file, optimized for slicing along all 3 axes
         """  
@@ -495,6 +512,7 @@ class DataFile():
                 raise FileExistsError("TIFF folder to be written already exists. Please delete first.")
             _message("Saving %s, axis %i,  slice %i to %i"%(self.fname.split('/')[-1], axis, s.start, s.stop), self.VERBOSITY > 1)    
             
+            ch = ch.astype(self.d_type)
             write_tiffseq(ch, SaveDir = self.fname, increment_flag = True,\
                           suffix_len = len(str(self.d_shape[axis])))
         
