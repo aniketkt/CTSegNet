@@ -11,4 +11,3 @@ FROM	tensorflow/tensorflow:2.3.0-gpu-jupyter
 COPY	. CTSegNet/.
 RUN	pip install CTSegNet/.
 
-#CMD	python -c "import tensorflow as tf; print(tf.config.list_physical_devices("GPU"))"

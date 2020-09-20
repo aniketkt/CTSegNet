@@ -16,8 +16,7 @@ setup(
     # Needed to actually package something
     packages= ['ct_segnet', 'ct_segnet.data_utils', 'ct_segnet.model_utils'],
     # Needed for dependencies
-    install_requires=['tensorflow-gpu==2.3',
-			'numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn','ConfigArgParse', 'tqdm', 'ipython'],
+    install_requires=['numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn','ConfigArgParse', 'tqdm', 'ipython'],
     version=open('VERSION').read().strip(),
     license='BSD',
     description='Automated 3D segmentation powered by 2D convolutional neural networks',
