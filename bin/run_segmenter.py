@@ -100,6 +100,14 @@ def main(args):
         print("Reading CT volume into memory...")
         dd = ct_dfile.read_full()
         
+        if args.preprocess:
+            print("\tPreprocessing volume...")
+            if not os.path.exists("preprocessor.py"):
+                input("Looked for preprocessor.py, but not found! Please create one and press enter. Or press CTRL+C to exit")
+            
+            from preprocessor import preprocessor
+            dd = preprocessor(dd)
+        
         for idx, row in df_params.iterrows(): # iterate over masks
 
             # assign arguments from df_params for this mask
@@ -193,6 +201,8 @@ def main(args):
                                                   max_GB = args.mem_thres/(n_masks))
             ch = np.asarray(ch)
             ch = np.median(ch, axis = 0).astype(np.uint8)
+            
+            
             vote_dfile.write_chunk(ch, axis = 0, s = s)
             del ch
             slice_start = s.stop            
@@ -202,18 +212,31 @@ def main(args):
         t1 = time.time()
         total_time = (t1 - t0) / 60.0
         print("\nDONE on %s\nTotal time for ensemble mask %s : %.2f minutes"%(time.ctime(), args.vote_maskname, total_time))
-
-
-    if args.remove_masks:
-        print("Intermediate masks will be removed.")
-        for idx, row in df_params.iterrows(): # iterate over masks
-            seg_fname = os.path.join(args.seg_path, row["mask_name"])
-            if not args.tiff_output:
-                seg_fname = seg_fname + ".hdf5"
-                os.remove(seg_fname)
-            else:
-                rmtree(seg_fname)
         
+
+        if args.remove_masks:
+            print("Intermediate masks will be removed.")
+            for idx, row in df_params.iterrows(): # iterate over masks
+                seg_fname = os.path.join(args.seg_path, row["mask_name"])
+                if not args.tiff_output:
+                    seg_fname = seg_fname + ".hdf5"
+                    os.remove(seg_fname)
+                else:
+                    rmtree(seg_fname)
+    
+        if args.morpho_filt:
+            print("\nApplying morphological operations on ensemble vote...")
+#             if not os.path.exists("morpho.py"):
+#                 input("Looked for morpho.py, but not found! Please create one and press enter. Or press CTRL+C to exit")
+
+            from ct_segnet.morpho import morpho_filter
+            vol = vote_dfile.read_full()
+            vol = morpho_filter(vol, radius = args.radius, \
+                                ops = args.ops, \
+                                crops = args.crops, \
+                                invert_mask = args.invert_mask)
+            vote_dfile.write_full(vol)
+    
     return
 
 if __name__ == "__main__":
@@ -229,6 +252,7 @@ if __name__ == "__main__":
     parser.add('-m', '--model_name', required = True, type = str, help = 'model name')
     parser.add('-v', '--vote_maskname', required = False, type = str, default = 'VOTED', help = 'name of final (voted) mask')
     parser.add('--remove_masks', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to delete all intermediate masks')
+    parser.add('--preprocess', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to preprocess data (tries to import preprocessor from preprocessor.py)')
     parser.add('--run_ensemble', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to run ensemble vote on all masks')
     parser.add('--run_seg', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to generate intermediate segmentation maps. If False, only voter will run')
     parser.add('--stats_only', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'if True, program will exit after showing dataset stats')
@@ -246,12 +270,26 @@ if __name__ == "__main__":
     parser.add('--overlap', type = int, action = 'append')
     parser.add('--rotation', type = float, action = 'append')
     parser.add('--crops', type = crops_type, action = 'append')
+    
+    # morphological operations
+    parser.add('--ops', required = True, type = str, action = 'append')
+    parser.add('--radius', required = True, type = int, action = 'append')
+    parser.add('--invert_mask', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to invert mask before applying ops')
+    parser.add('--morpho_filt', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to apply morphological ops')
+    
     args = parser.parse_args()
 
 #     print(parser.format_values())
 #     print(args)
     
+    time_script_start = time.time()
     main(args)
+    time_script_end = time.time()
+    tot_time_script = (time_script_end - time_script_start)/60.0
+    
+    _str = "Total time elapsed for script: %.2f minutes"%tot_time_script 
+    data_io.show_endmessage(_str)
+    
         
         
         

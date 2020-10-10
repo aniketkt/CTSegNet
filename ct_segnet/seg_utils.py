@@ -230,6 +230,7 @@ def _rotate(imgs, angle):
     rows, cols = imgs[0].shape
     M = cv2.getRotationMatrix2D((cols/2,rows/2), angle,1)
     return np.asarray([cv2.warpAffine(imgs[iS],M,(cols,rows)) for iS in range(len(imgs))])    
+
 def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
                  overlap = None, nprocs = None, rot_angle = 0.0, slice_axis = 0,\
                  crops = None, arr_split = 1):

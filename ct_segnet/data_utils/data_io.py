@@ -14,10 +14,6 @@ import glob
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 
-from tkinter import *
-from tkinter import filedialog as fd
-from matplotlib.patches import Rectangle
-
 import functools
 from multiprocessing import cpu_count, Pool
 from skimage.io import imread
@@ -36,61 +32,6 @@ def _message(_str, bool_in):
     if bool_in:
         print(_str)
         
-        
-def browse_path(_msg, default_path = "/"):
-    """
-    :meta private:
-    """
-    root = Tk()
-    root.withdraw()
-    _data_path = fd.askopenfilename(parent = root, initialdir = default_path, title = _msg + "Can be TIFF directory or HDF5.", filetypes = (('tiff file series', ('*.tif','*.tiff')),('hdf5 file', '*.hdf5')))
-    if ".tif" in _data_path:
-        _data_path = "/" + os.path.join(*_data_path.split('/')[:-1])
-        _tiff = True
-    else:
-        _tiff = False
-        
-    root.destroy()
-    return _data_path, _tiff
-        
-
-def browse_file(_msg, f_type = ("comma delimited", "*.csv")):
-    """
-    :meta private:
-    """
-    root = Tk()
-    root.withdraw()
-    _data_path = fd.askopenfilename(parent = root, title = _msg, filetypes = (f_type,))
-        
-    root.destroy()
-    return _data_path
-
-
-def browse_files(_msg, f_type = ("comma delimited", "*.csv")):
-    """
-    :meta private:
-    """
-    root = Tk()
-    root.withdraw()
-    _data_paths = fd.askopenfilenames(parent = root, title = _msg, filetypes = (f_type,))
-        
-    root.destroy()
-    return _data_paths
-
-
-
-def browse_savepath(_msg):
-    """
-    :meta private:
-    """
-    root = Tk()
-    root.withdraw()
-    _data_path = fd.askdirectory(parent = root, title = _msg)
-        
-    root.destroy()
-    return _data_path
-
-
 def handle_YN(_str):
     """
     :meta private:
@@ -144,29 +85,36 @@ class DataFile():
     
     For setting chunk size in hdf5, either chunk_shape > chunk_size > chunked_slice_size can be input. If two or more are provided, this order is used to select one.  
     
-    :param str fname: path to hdf5 filename or folder containing tiff sequence  
-    
-    :param bool tiff: True if fname is path to tiff sequence, else False  
-    
-    :param str data_tag: str, dataset name / path in hdf5 file. None if tiff sequence  
-    
-    :param int VERBOSITY: 0 - print nothing, 1 - important stuff, 2 - print everything  
-    
-    :param d_shape: shape of dataset; required for non-existent dataset only  
-    
-    :type d_shape: tuple or None; required for non-existent dataset only  
-    
-    :param d_type: data type for voxel data; required for non-existent dataset only  
-    
-    :type d_type: numpy.dtype  
-    
-    :param float chunk_size: in GB - size of a hyperslab of shape proportional to data shape    
-    
-    :param float chunked_slice_size: in GB - size of a chunk of some slices along an axis  
-    
-    :param tuple chunk_shape: shape of hyperslab for hdf5 chunking  
+    Parameters
+    ----------
+    fname : str
+        path to hdf5 filename or folder containing tiff sequence  
 
-    Example:
+    tiff : bool
+        True if fname is path to tiff sequence, else False  
+    
+    data_tag: str
+        dataset name / path in hdf5 file. None if tiff sequence  
+    
+    VERBOSITY : int
+        0 - print nothing, 1 - important stuff, 2 - print everything  
+    
+    d_shape : tuple
+        shape of dataset; required for non-existent dataset only  
+    
+    d_type : numpy.dtype
+        data type for voxel data; required for non-existent dataset only  
+    
+    chunk_size: float
+        in GB - size of a hyperslab of shape proportional to data shape    
+    
+    chunked_slice_size : float
+        in GB - size of a chunk of some slices along an axis  
+    
+    chunk_shape : tuple
+        shape of hyperslab for hdf5 chunking  
+
+    Example
     
     .. highlight:: python
     .. code-block:: python
@@ -391,21 +339,32 @@ class DataFile():
     def read_chunk(self, axis = None, slice_start = None, chunk_shape = None, max_GB = 10.0, slice_end = "", skip_fac = None):
         """Read a chunk of data along a given axis.  
         
-        :return: (data, slice) where data is a 3D numpy array
+        Parameters
+        ----------
         
-        :rtype: tuple  
+        axis : int
+            axis > 0 is not supported for tiff series  
         
-        :param int axis: axis > 0 is not supported for tiff series  
+        slice_start : int
+            start index along axis  
         
-        :param int slice_start: start index along axis  
+        chunk_shape : tuple
+            (optional) used if hdf5 has no attribute chunk_shape  
         
-        :param tuple chunk_shape: (optional) used if hdf5 has no attribute chunk_shape  
+        max_GB : float
+            maximum size of chunk that's read. slice_end will be calculated from this.  
         
-        :param float max_GB: maximum size of chunk that's read. slice_end will be calculated from this.  
+        slice_end : int
+            (optional) used if max_GB is not provided.  
         
-        :param int slice_end: (optional) used if max_GB is not provided.  
+        skip_fac : int
+            (optional) "step" value as in slice(start, stop, step)  
         
-        :param int skip_fac: (optional) "step" value as in slice(start, stop, step)
+        Returns
+        -------
+        tuple
+            (data, slice) where data is a 3D numpy array  
+        
         
         """
         if slice_end == "":
@@ -519,48 +478,6 @@ class DataFile():
         return
 
 #### END Class DataFile #######
-
-from scipy.ndimage.filters import median_filter
-def get_domain_extent(d, min_size = 512):
-
-    while True:
-        fig, ax = plt.subplots(1, 2, figsize = (20,10))
-
-        ax[0].imshow(d[d.shape[0]//2,...], cmap = 'Greys', alpha = 0.5)
-        ax[0].set_title("First Select two points to define a rectangle")
-        plt.pause(0.1)
-        pts = np.asarray(plt.ginput(2))
-        xy = pts[0,:]
-        w, h = pts[1,:] - pts[0,:]
-        rect = Rectangle(xy, w, h, fill = False)
-        ax[0].add_patch(rect)
-        plt.pause(0.05)
-        crop_X, crop_Y = np.sort(pts[:,0]).astype(np.uint16), np.sort(pts[:,1].astype(np.uint16))
-        
-        show_img = median_filter(d[:,d.shape[1]//2,:], size = 5)
-        ax[1].imshow(show_img, cmap = 'Greys', alpha = 0.5)
-        ax[1].set_title("Then Select the top and bottom extents of the domain.")
-        plt.pause(0.05)
-        pts = np.asarray(plt.ginput(2))[:,1]
-        xy = (crop_X[0], pts.min())
-        w = crop_X[1] - crop_X[0]
-        h = pts.max() - pts.min()
-        rect = Rectangle(xy, w, h, fill = False)
-        ax[1].add_patch(rect)
-        plt.pause(0.05)
-        crop_Z = np.sort(pts.astype(np.uint16))
-
-        if (crop_X[1] - crop_X[0] < min_size) or (crop_Y[1] - crop_Y[0] < min_size) or (crop_Z[1] - crop_Z[0] < min_size):
-            print("Domain extents must be larger than model patch size")
-            plt.close()
-            continue
-    
-        if handle_YN("Happy?" ):
-            break
-        else:
-            plt.close()
-    
-    return crop_Z, crop_Y, crop_X
 
 def read_tiffseq(userfilepath = '', procs = None, s = None):
     """Read a sequence of tiff images from folder.  
@@ -685,6 +602,13 @@ def show_header():
     print("\tWelcome to CTSegNet: AI-based 3D Segmentation")
     print("\n" + "#"*60 + "\n")
     return
+
+def show_endmessage(_str):
+    print("\n" + "#"*60 + "\n")
+    print("\t" + _str)
+    print("\n" + "#"*60 + "\n")
+    return
+    
 
 def _istiff(fpath, data_tag):
     """
