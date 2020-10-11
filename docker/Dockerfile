@@ -3,6 +3,18 @@ FROM tensorflow/tensorflow:2.3.0-gpu-jupyter
 
 MAINTAINER Aniket Tekawade <aniketkt@gmail.com>
 
+ARG NB_USER=janedoe
+ARG NB_UID=1000
+ENV USER ${NB_USER}
+ENV NB_UID ${NB_UID}
+ENV HOME /home/${NB_USER}
+
+RUN adduser --disabled-password \
+    --gecos "Default user" \
+    --uid ${NB_UID} \
+    ${NB_USER}
+
+
 COPY . CTSegNet/.
 
 
