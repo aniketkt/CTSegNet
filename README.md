@@ -1,3 +1,9 @@
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/aniketkt/CTSegNet/master?filepath=notebooks%2Fresolution_analysis.ipynb)
+[![DOCS](https://readthedocs.org/projects/docs/badge/?version=latest)](https://ctsegnet.readthedocs.io/en/latest/?badge=latest)
+[![DOCKER](https://img.shields.io/docker/cloud/automated/aniketkt/ct_segnet)](https://hub.docker.com/repository/docker/aniketkt/ct_segnet/builds)
+[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/aniketkt/ct_segnet)](https://hub.docker.com/repository/docker/aniketkt/ct_segnet/builds)
+
+
 # CTSegNet
 
 CTSegNet is a package for end-to-end 3D segmentation workflow for large X-ray tomographic datasets using 2D fully convolutional neural networks (fCNN).
