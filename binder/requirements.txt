@@ -1,1 +1,2 @@
 -e git+https://github.com/aniketkt/ImageStackPy.git#egg=ImageStackPy
+-e git+https://github.com/aniketkt/CTSegNet.git#egg=ct_segnet
