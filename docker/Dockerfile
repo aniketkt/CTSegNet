@@ -10,4 +10,7 @@ RUN	apt-get update && \
 	apt install libgl1-mesa-glx -y
 
 
-RUN	pip install --upgrade pip && pip install CTSegNet/.
+RUN	pip install --upgrade pip && \
+	pip install CTSegNet/. && \
+	pip install git+https://github.com/aniketkt/ImageStackPy.git#egg=ImageStackPy
+	
