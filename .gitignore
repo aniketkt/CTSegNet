@@ -88,13 +88,6 @@ pip-log.txt
 *.layout
 *.bst
 
-# Test files #
-##############
-tmp
-test.py
-main.py
-*.ipynb
-trunk
 
 # Installer logs
 ##############
