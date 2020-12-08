@@ -114,10 +114,10 @@ class DataFile():
     chunk_shape : tuple
         shape of hyperslab for hdf5 chunking  
 
-    Example
+    Example  
     
-    .. highlight:: python
-    .. code-block:: python
+    .. highlight:: python   
+    .. code-block:: python  
     
         from ct_segnet.data_io import DataFile  
         # If fname points to existing hdf5 file  

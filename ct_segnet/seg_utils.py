@@ -112,7 +112,7 @@ class Segmenter():
     
 
     def seg_chunk(self, p, max_patches = None, overlap = None,\
-                  nprocs = None, arr_split = 1):
+                  nprocs = None, arr_split = 1, arr_split_infer = 1):
         """Segment a volume of shape (nslices, ny, nx). The 2D keras model passes\
         along nslices, segmenting images (ny, nx) with a patch size defined by input \
         to the model  
@@ -163,9 +163,15 @@ class Segmenter():
         # Predict using the model.
         message("Running predictions using model...")
         message("\tCurrent d shape:" + str(np.shape(p)))
-        p = self.model.predict(p[...,np.newaxis])
-        p = p[...,0]
-        p = np.asarray(np.round(p)).astype(np.uint8)
+        
+        
+        p = np.array_split(p, arr_split_infer)
+        for jj in range(len(p)):
+            p[jj] = self.model.predict(p[jj][...,np.newaxis])[...,0]
+            p[jj] = np.round(p[jj])
+        p = np.concatenate(p, axis = 0)
+        
+        p = p.astype(np.uint8) # typecasting
         
         # Now, reshape the data back...
         p = p.reshape(dataset_shape)
@@ -233,7 +239,7 @@ def _rotate(imgs, angle):
 
 def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
                  overlap = None, nprocs = None, rot_angle = 0.0, slice_axis = 0,\
-                 crops = None, arr_split = 1):
+                 crops = None, arr_split = 1, arr_split_infer = 1):
     """Segment a volume of shape (nz, ny, nx). The 2D keras model passes
     along either axis (0,1,2), segmenting images with a patch size defined by input
     to the model in the segmenter class.  
@@ -287,7 +293,7 @@ def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
         p = preprocess_func(p)
 
     # Run the segmenter algorithm
-    p = segmenter.seg_chunk(p, max_patches = max_patches, overlap = overlap, nprocs = nprocs, arr_split = arr_split)
+    p = segmenter.seg_chunk(p, max_patches = max_patches, overlap = overlap, nprocs = nprocs, arr_split = arr_split, arr_split_infer = arr_split_infer)
 
 
     message("Re-orienting, rotating and padding back original size...")

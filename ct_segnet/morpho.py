@@ -31,7 +31,6 @@ def make_binary_structure(radius, ndim = 3):
     return struct
 
 
-@profile
 def morpho_filter(vol, ops = ["erode", "dilate"], radius = [5, 5], output = None, crops = None, invert_mask = False):
     """
     this removes tessellation artifacts

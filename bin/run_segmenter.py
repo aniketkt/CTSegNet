@@ -138,8 +138,10 @@ def main(args):
                               max_patches = max_patches, \
                               overlap = overlap, \
                               nprocs = args.nprocs, \
-                              arr_split = args.arr_split, \
+                              arr_split = args.arr_split,\
+                              arr_split_infer = args.arr_split_infer,\
                               crops = args.crops)
+            
             seg_dfile.write_full(ch)
             t1 = time.time()
             total_time = (t1 - t0) / 60.0
@@ -224,18 +226,24 @@ def main(args):
                 else:
                     rmtree(seg_fname)
     
-        if args.morpho_filt:
-            print("\nApplying morphological operations on ensemble vote...")
-#             if not os.path.exists("morpho.py"):
-#                 input("Looked for morpho.py, but not found! Please create one and press enter. Or press CTRL+C to exit")
+    if args.morpho_filt:
+        print("\nApplying morphological operations on ensemble vote...")
+        
+        
+        vote_fname = os.path.join(args.seg_path, args.vote_maskname)
+        if not args.tiff_output: vote_fname = vote_fname + ".hdf5"
+        vote_dfile = data_io.DataFile(vote_fname, \
+                                      tiff = args.tiff_output,\
+                                      data_tag = "SEG",\
+                                      VERBOSITY = args.rw_verbosity)            
 
-            from ct_segnet.morpho import morpho_filter
-            vol = vote_dfile.read_full()
-            vol = morpho_filter(vol, radius = args.radius, \
-                                ops = args.ops, \
-                                crops = args.crops, \
-                                invert_mask = args.invert_mask)
-            vote_dfile.write_full(vol)
+        from ct_segnet.morpho import morpho_filter
+        vol = vote_dfile.read_full()
+        vol = morpho_filter(vol, radius = args.radius, \
+                            ops = args.ops, \
+                            crops = args.crops, \
+                            invert_mask = args.invert_mask)
+        vote_dfile.write_full(vol)
     
     return
 
@@ -262,6 +270,7 @@ if __name__ == "__main__":
     parser.add('--tiff_output', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to save final (ensemble vote) mask as tiff sequence in folder')
     parser.add('--nprocs', required = False, type = int, default = 1, metavar = 'integer', help = 'use these many processors on each subset of chunk read into memory')
     parser.add('--arr_split', required = False, type = int, default = 1, metavar = 'integer', help = 'break down chunk read in memory into these many subsets for processing')
+    parser.add('--arr_split_infer', required = False, type = int, default = 1, metavar = 'integer', help = 'break down array of patched images into these many subsets for inference on GPU')
     parser.add('--mpl_agg', required = False, type = str, default = 'Agg', help = 'matplotlib backend to use')
     
     parser.add('--mask_name', action = 'append', type = str, default = [])
@@ -272,9 +281,9 @@ if __name__ == "__main__":
     parser.add('--crops', type = crops_type, action = 'append')
     
     # morphological operations
-    parser.add('--ops', required = True, type = str, action = 'append')
-    parser.add('--radius', required = True, type = int, action = 'append')
-    parser.add('--invert_mask', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to invert mask before applying ops')
+    parser.add('--ops', required = False, type = str, action = 'append')
+    parser.add('--radius', required = False, type = int, action = 'append')
+    parser.add('--invert_mask', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to invert mask before applying ops')
     parser.add('--morpho_filt', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to apply morphological ops')
     
     args = parser.parse_args()

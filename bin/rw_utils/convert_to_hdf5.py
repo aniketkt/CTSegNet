@@ -79,7 +79,13 @@ def main(args):
                                chunked_slice_size = chunked_slice_size)
     
     print("\nChunking scheme estimated as: %s"%str(w_dfile.chunk_shape))
-    input("\nHDF5 file will be saved to the following location.\n%s\nPress any key to continue."%output_fname)
+
+    str_prompt = "\nHDF5 file will be saved to the following location.\n%s"%output_fname
+    if not args.yes:
+        input(str_prompt + "\nPress any key to continue")
+    else:
+        print(str_prompt)
+
     w_dfile.create_new(overwrite = args.overwrite_OK)
     
     t0 = time.time()
@@ -98,7 +104,8 @@ def main(args):
     print("\nTotal time: %.2f minutes"%(total_time))
     
     if args.delete:
-        input("Delete old file? Press any key")
+        
+        if not args.yes: input("Delete old file? Press any key")
         if tiff_input:
             rmtree(input_fname)
         else:
@@ -126,6 +133,7 @@ if __name__ == "__main__":
     parser.add_argument('-w', "--overwrite_OK", required = False, action = "store_true", default = False, help = "if output file exists, overwrite")
 #     parser.add_argument('-r', "--resample-factor", required = False, type = int, help = "resample to reduce dataset size by cube of this factor")
 
+    parser.add_argument('-y', "--yes", required = False, action = "store_true", default = False, help = "say yes to all prompts")
     args = parser.parse_args()
     main(args)
     
