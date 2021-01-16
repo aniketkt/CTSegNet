@@ -12,14 +12,13 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from ct_segnet.data_utils import patch_maker as PM
-from ct_segnet.model_utils.losses import custom_objects_dict
 # from ImageStackPy import ImageProcessing as IP
 
 from mpl_toolkits.axes_grid1.anchored_artists import AnchoredSizeBar
 import matplotlib.font_manager as fm
 from skimage.filters import sobel
 
-def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None, idxs = None):
+def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None, idxs = None, axis_off = False, label_planes = True):
     """View 3 images drawn from planes through axis 0, 1, and 2 at indices listed (idx). Do this for a DataFile or numpy.array
     
     :param matplotlib.axes ax:   three axes  
@@ -35,6 +34,15 @@ def view_midplanes(vol = None, ds = None, ax = None, cmap = 'gray', alpha = None
     imgs = get_orthoplanes(ds = ds, vol = vol, idxs = idxs)
     for i in range(3):
         ax[i].imshow(imgs[i], cmap = cmap, alpha = alpha)
+    
+    if label_planes:
+        h = ax[0].set_title("XY mid-plane")
+        h = ax[1].set_title("XZ mid-plane")
+        h = ax[2].set_title("YZ mid-plane")    
+    
+    if axis_off:
+        for ii in range(3):
+            ax[ii].axis('off')
     
     return ax
 

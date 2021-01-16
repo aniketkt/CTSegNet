@@ -33,16 +33,73 @@ def message(_str):
     return
 
 
+class FeatureExtraction2D(Segmenter):
+    '''  
+    This class converts a 2D image into an n-dimensional vector z  
+    
+    Parameters  
+    ----------  
+    ndims : 2
+        number of features to be output
+    
+    
+    '''  
+    
+    def __init__(self, max_patches = None, overlap = None, ndims = 2):
+        
+        self.max_patches = max_patches
+        self.overlap = overlap
+        
+    
+    def extract_measurement(s, measurement, **kwargs):
+        
+        '''  
+        Returns  
+        -------  
+        measured_features : np.array  
+            shape (ndims,)
+        
+        Parameters  
+        ----------  
+        measurement : func  
+            function to extract a measurement, e.g. radius, particle centroid, etc.  
+            
+        
+        '''
+        
+        if measurement is None:
+            raise "ValueError: missing argument measurement is required"
+        
+        seg_img = self.seg_image(s, max_patches = self.max_patches, overlap = self.overlap)
+        
+        measured_features = measurement(s, **kwargs)
+        return measured_features
+        
+    def extract_code(s):
+        '''
+        not implemented  
+        
+        to do:
+        consider patches are created. How should the code vectors of each patch be converted to singe vector? (mean, median, std?)  
+        '''  
+        raise NotImplementedError
+        
+    
+   
+    
+
 class Segmenter():
-    """The Segmenter class wraps over a keras model, integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow.  
+    """
+    The Segmenter class wraps over a keras model, integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow.  
     
-    :param model:  keras model with input shape = out shape = (ny, nx, 1)  
+    model: tf.keras.model  
+        keras model with input shape = out shape = (ny, nx, 1)  
     
-    :type model: tf.keras.model  
+    model_filename : str  
+        path to keras model file (e.g. "model_1.h5")  
     
-    :param str model_filename:  path to keras model file (e.g. "model_1.h5")  
-    
-    :param str model_name:  (optional) just a name for the model  
+    model_name : str  
+        (optional) just a name for the model  
     
     """
     def __init__(self, model_filename = None, model = None, model_name = "unknown"):
@@ -53,19 +110,19 @@ class Segmenter():
             self.model_name = os.path.split(model_filename)[-1].split('.')[0]
             self.model = load_model(model_filename, custom_objects = custom_objects_dict)
 
-    def seg_image(self, p, max_patches = None, overlap = None):
+    def seg_image(self, s, max_patches = None, overlap = None):
 
-        """Test the segmenter on arbitrary sized 2D image. This method extracts patches of shape same as the input shape of 2D CNN, segments them and stitches them back to form the original image.  
+        """
+        Test the segmenter on arbitrary sized 2D image. This method extracts patches of shape same as the input shape of 2D CNN, segments them and stitches them back to form the original image.  
         
-        :param tuple max_patches: (my, mx) are # of patches along Y, X in image  
+        max_patches : tuple  
+            (my, mx) are # of patches along Y, X in image  
         
-        :param p: greyscale image of shape (ny, nx)  
+        s : numpy.array  
+            greyscale image slice of shape (ny, nx)  
         
-        :type p: numpy.array
-        
-        :param overlap: number of overlapping pixels between patches  
-        
-        :type overlap: tuple or int  
+        overlap : tuple or int  
+            number of overlapping pixels between patches  
         
         """
         # Handle patching parameter inputs
@@ -79,53 +136,55 @@ class Segmenter():
                    0 if max_patches[1] == 1 else overlap[1])
     
         # Resize images
-        orig_shape = p.shape
-        p = cv2.resize(p, (max_patches[1]*patch_size[1] - overlap[1],\
+        orig_shape = s.shape
+        s = cv2.resize(s, (max_patches[1]*patch_size[1] - overlap[1],\
                            max_patches[0]*patch_size[0] - overlap[0]))
         
         # Make patches
-        downres_shape = p.shape
+        downres_shape = s.shape
         steps = PM.get_stepsize(downres_shape, patch_size)
-        p = PM.get_patches(p, patch_size = patch_size, steps = steps)
+        s = PM.get_patches(s, patch_size = patch_size, steps = steps)
         
         # The dataset now has shape: (ny, nx, py, px). ny, nx are # of patches, and py, px is patch_shape.
         # Reshape this dataset into (n, py, px) where n = ny*nx. Trust numpy to preserve order. lol.
-        dataset_shape = p.shape
-        p = p.reshape((-1,) + patch_size)
+        dataset_shape = s.shape
+        s = s.reshape((-1,) + patch_size)
         
         # Predict using the model.
-        p = self.model.predict(p[...,np.newaxis])
-        p = p[...,0]
+        s = self.model.predict(s[...,np.newaxis])
+        s = s[...,0]
         
         # Now, reshape the data back...
-        p = p.reshape(dataset_shape)
-        
+        s = s.reshape(dataset_shape)
         
         # Reconstruct from patches...
-        p = PM.recon_patches(p, img_shape = downres_shape, steps = steps)
+        s = PM.recon_patches(s, img_shape = downres_shape, steps = steps)
         
         # Finally, resize the images to the original shape of slices... This will result in some loss of resolution...
-        p = cv2.resize(p, (orig_shape[1], orig_shape[0]))
+        s = cv2.resize(s, (orig_shape[1], orig_shape[0]))
 
         # outputs: segmented image of same shape as input image p
-        return np.asarray(np.round(p)).astype(np.uint8)
+        return np.asarray(np.round(s)).astype(np.uint8)  
     
 
     def seg_chunk(self, p, max_patches = None, overlap = None,\
                   nprocs = None, arr_split = 1, arr_split_infer = 1):
-        """Segment a volume of shape (nslices, ny, nx). The 2D keras model passes\
+        """
+        Segment a volume of shape (nslices, ny, nx). The 2D keras model passes\
         along nslices, segmenting images (ny, nx) with a patch size defined by input \
         to the model  
         
-        :param tuple max_patches: (my, mx) are # of patches along Y, X in image (ny, nx)
+        max_patches: tuple  
+            (my, mx) are # of patches along Y, X in image (ny, nx)  
 
-        :param overlap: number of overlapping pixels between patches  
+        overlap : tuple or int  
+            number of overlapping pixels between patches  
         
-        :type overlap: tuple or int  
-
-        :param int nprocs: number of CPU processors for multiprocessing Pool  
+        nprocs : int  
+            number of CPU processors for multiprocessing Pool  
         
-        :param int arr_split: breakdown chunk into arr_split number of smaller chunks  
+        arr_split : int  
+            breakdown chunk into arr_split number of smaller chunks  
         
         """
         
@@ -197,11 +256,21 @@ class Segmenter():
 
 def get_repadding(crops, d_shape):
 
-    """Returns padding values to restore 3D np array after it was cropped.  
+    """
     
-    :param list crops: 3 tuples in a list [(nz1,nz2), (ny1,ny2), (nx1,nx2)]  
+    Returns  
+    -------  
+        tuple
+            padding values to restore 3D np array after it was cropped.  
     
-    :param tuple d_shape: original shape of 3D array  
+    Parameters  
+    ----------  
+    
+    crops : list
+        3 tuples in a list [(nz1,nz2), (ny1,ny2), (nx1,nx2)]  
+
+    d_shape : tuple
+        original shape of 3D array  
     
     """
     pads = []
@@ -224,13 +293,18 @@ def get_repadding(crops, d_shape):
 
                 
 def _rotate(imgs, angle):
-    """Just a wrapper for cv2's affine transform for rotating an image about center  
+    """  
     
-    :param imgs:   volume or series of images (n, ny, nx)  
+    Just a wrapper for cv2's affine transform for rotating an image about center  
     
-    :type imgs: numpy.array  
+    Parameters  
+    ----------  
     
-    :param float angle: value to rotate image about center, along (ny,nx)  
+    imgs : np.array  
+        volume or series of images (n, ny, nx)  
+    
+    angle : float  
+        value to rotate image about center, along (ny,nx)  
     
     """
     rows, cols = imgs[0].shape
@@ -240,34 +314,45 @@ def _rotate(imgs, angle):
 def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
                  overlap = None, nprocs = None, rot_angle = 0.0, slice_axis = 0,\
                  crops = None, arr_split = 1, arr_split_infer = 1):
-    """Segment a volume of shape (nz, ny, nx). The 2D keras model passes
+    """
+    Segment a volume of shape (nz, ny, nx). The 2D keras model passes
     along either axis (0,1,2), segmenting images with a patch size defined by input
     to the model in the segmenter class.  
 
-    :param tuple max_patches: (my, mx) are # of patches along Y, X in image (ny, nx)
+    Parameters
+    ----------
+    max_patches : tuple  
+        (my, mx) are # of patches along Y, X in image (ny, nx)  
 
-    :param overlap: number of overlapping pixels between patches  
+    overlap : tuple or int  
+        number of overlapping pixels between patches  
 
-    :type overlap: tuple or int  
-
-    :param int nprocs: number of CPU processors for multiprocessing Pool  
-
-    :param int arr_split: breakdown chunk into arr_split number of smaller chunks  
-
+    nprocs : int  
+        number of CPU processors for multiprocessing Pool  
     
-    :param int slice_axis: (0,1,2); axis along which to draw slices  
+    arr_split : int  
+        breakdown chunk into arr_split number of smaller chunks  
+        
+    slice_axis : int  
+        (0,1,2); axis along which to draw slices  
     
-    :param list crops: list of three tuples; each tuple (start, stop) will
-                      define a python slice for the respective axis  
+
+    crops : list  
+        list of three tuples; each tuple (start, stop) will define a python slice for the respective axis  
+    
+    rot_angle : float  
+        (degrees) rotate volume around Z axis before slicing along any given axis. Note this is redundant if slice_axis = 0  
+        
                       
-    :param float rot_angle: (degrees) rotate volume around Z axis before slicing along any given axis. Note this is redundant if slice_axis = 0  
+    nprocs : int  
+        number of CPU processors for multiprocessing Pool  
+   
+    arr_split : int  
+        breakdown chunk into arr_split number of smaller chunks  
     
-    :param int nprocs: number of CPU processors for multiprocessing Pool
-    
-    :param int arr_split: breakdown chunk into arr_split number of smaller chunks  
-    
-    :param func preprocess_func: pass a preprocessing function that applies a 2D filter on an image  
-    
+    preprocess_fun : func  
+        pass a preprocessing function that applies a 2D filter on an image  
+        
     """
     if nprocs is None:
         nprocs = 4

@@ -189,10 +189,6 @@ def main(args_summary, **kwargs):
             f.write("\nTraining Interrupted after %i epochs: "%logger.i + time.ctime() + "\n")
             f.write("\nEnd of Entry")
     
-    
-
-    
-    
     return
         
         
