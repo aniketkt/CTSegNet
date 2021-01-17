@@ -33,61 +33,6 @@ def message(_str):
     return
 
 
-class FeatureExtraction2D(Segmenter):
-    '''  
-    This class converts a 2D image into an n-dimensional vector z  
-    
-    Parameters  
-    ----------  
-    ndims : 2
-        number of features to be output
-    
-    
-    '''  
-    
-    def __init__(self, max_patches = None, overlap = None, ndims = 2):
-        
-        self.max_patches = max_patches
-        self.overlap = overlap
-        
-    
-    def extract_measurement(s, measurement, **kwargs):
-        
-        '''  
-        Returns  
-        -------  
-        measured_features : np.array  
-            shape (ndims,)
-        
-        Parameters  
-        ----------  
-        measurement : func  
-            function to extract a measurement, e.g. radius, particle centroid, etc.  
-            
-        
-        '''
-        
-        if measurement is None:
-            raise "ValueError: missing argument measurement is required"
-        
-        seg_img = self.seg_image(s, max_patches = self.max_patches, overlap = self.overlap)
-        
-        measured_features = measurement(s, **kwargs)
-        return measured_features
-        
-    def extract_code(s):
-        '''
-        not implemented  
-        
-        to do:
-        consider patches are created. How should the code vectors of each patch be converted to singe vector? (mean, median, std?)  
-        '''  
-        raise NotImplementedError
-        
-    
-   
-    
-
 class Segmenter():
     """
     The Segmenter class wraps over a keras model, integrating 3D slicing and 2D patching functions to enable the 3D-2D-3D conversations in the segmentation workflow.  
@@ -396,6 +341,83 @@ def process_data(p, segmenter, preprocess_func = None, max_patches = None,\
     message("\tDone")
     
     return p.astype(np.uint8)
+
+
+
+class FeatureExtraction2D(Segmenter):
+    '''  
+    This class converts a 2D image into an n-dimensional vector z  
+    
+    Parameters  
+    ----------  
+    ndims : 2
+        number of features to be output  
+    
+    model: tf.keras.model  
+        keras model with input shape = out shape = (ny, nx, 1)  
+    
+    model_filename : str  
+        path to keras model file (e.g. "model_1.h5")  
+    
+    model_name : str  
+        (optional) just a name for the model  
+    
+    '''  
+    
+    def __init__(self, max_patches = None, overlap = None, ndims = 2, model_filename = None):
+
+        self.max_patches = max_patches
+        self.overlap = overlap
+        self.model_filename = model_filename
+#         super(Segmenter, self).__init__(self, model_filename = model_filename)        
+
+        self.model_name = os.path.split(model_filename)[-1].split('.')[0]
+        self.model = load_model(model_filename, custom_objects = custom_objects_dict)
+
+
+
+    def extract_measurement(self, s, measurement, **kwargs):
+        
+        '''  
+        Returns  
+        -------  
+        measured_features : np.array  
+            shape (ndims,)
+        
+        Parameters  
+        ----------  
+        measurement : func  
+            function to extract a measurement, e.g. radius, particle centroid, etc.  
+            
+        
+        '''
+        
+        if measurement is None:
+            raise "ValueError: missing argument measurement is required"
+        
+        seg_img = self.seg_image(s, max_patches = self.max_patches, overlap = self.overlap)
+        
+        measured_features = measurement(seg_img, **kwargs)
+        return measured_features
+        
+    def extract_code(s):
+        '''
+        not implemented  
+        
+        to do:
+        consider patches are created. How should the code vectors of each patch be converted to singe vector? (mean, median, std?)  
+        '''  
+        raise NotImplementedError
+        
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == "__main__":
