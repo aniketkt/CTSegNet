@@ -7,7 +7,10 @@
 .. autoclass:: ct_segnet.seg_utils.Segmenter
    :members:
    
-   
+.. autoclass:: ct_segnet.seg_utils.FeatureExtraction2D
+   :members:
+
+
 
 
    

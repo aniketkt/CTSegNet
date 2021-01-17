@@ -388,11 +388,11 @@ class FeatureExtraction2D(Segmenter):
         ----------  
         
         img : np.array
-            A 2D numpy array. Could be a tomo slice or projection.  
+            A 2D numpy array (ny,nx). Could be a tomo slice or projection.  
+            
         measurement : func  
             function to extract a measurement, e.g. radius, particle centroid, etc.  
             
-        
         '''
         
         if measurement is None:
