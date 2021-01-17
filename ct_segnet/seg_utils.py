@@ -376,7 +376,7 @@ class FeatureExtraction2D(Segmenter):
 
 
 
-    def extract_measurement(self, s, measurement, **kwargs):
+    def extract_measurement(self, img, measurement, **kwargs):
         
         '''  
         Returns  
@@ -386,6 +386,9 @@ class FeatureExtraction2D(Segmenter):
         
         Parameters  
         ----------  
+        
+        img : np.array
+            A 2D numpy array. Could be a tomo slice or projection.  
         measurement : func  
             function to extract a measurement, e.g. radius, particle centroid, etc.  
             
