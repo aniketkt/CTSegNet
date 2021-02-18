@@ -350,8 +350,13 @@ class FeatureExtraction2D(Segmenter):
     
     Parameters  
     ----------  
-    ndims : 2
-        number of features to be output  
+    
+    max_patches : tuple  
+        (my, mx) are # of patches along Y, X in image  
+
+
+    overlap : tuple or int  
+        number of overlapping pixels between patches  
     
     model: tf.keras.model  
         keras model with input shape = out shape = (ny, nx, 1)  
@@ -364,8 +369,17 @@ class FeatureExtraction2D(Segmenter):
     
     '''  
     
-    def __init__(self, max_patches = None, overlap = None, ndims = 2, model_filename = None):
+    def __init__(self, max_patches = None, overlap = None, model_filename = None):
 
+        
+        if type(max_patches) is not tuple:
+            max_patches = (max_patches, max_patches)
+            
+        if type(overlap) is not tuple:
+            overlap = (overlap, overlap)
+        overlap = (0 if max_patches[0] == 1 else overlap[0],\
+                   0 if max_patches[1] == 1 else overlap[1])
+        
         self.max_patches = max_patches
         self.overlap = overlap
         self.model_filename = model_filename
@@ -398,7 +412,7 @@ class FeatureExtraction2D(Segmenter):
         if measurement is None:
             raise "ValueError: missing argument measurement is required"
         
-        seg_img = self.seg_image(s, max_patches = self.max_patches, overlap = self.overlap)
+        seg_img = self.seg_image(img, max_patches = self.max_patches, overlap = self.overlap)
         
         measured_features = measurement(seg_img, **kwargs)
         return measured_features
@@ -414,8 +428,66 @@ class FeatureExtraction2D(Segmenter):
         
 
 
+    def vis_feature(self, s, measurement, **kwargs):
 
-
+        """
+        This method extracts patches of shape same as the input shape of 2D CNN, measures a feature for each patch's segmentation map and stitches them back to form a checkered image. 
+        
+        s : numpy.array  
+            greyscale image slice of shape (ny, nx)  
+        
+        """
+        
+        # Handle patching parameter inputs
+        patch_size = self.model.output_shape[1:-1]    
+    
+        # Resize images
+        orig_shape = s.shape
+        s = cv2.resize(s, (self.max_patches[1]*patch_size[1] - self.overlap[1],\
+                           self.max_patches[0]*patch_size[0] - self.overlap[0]))
+        
+        # Make patches
+        downres_shape = s.shape
+        steps = PM.get_stepsize(downres_shape, patch_size)
+        s = PM.get_patches(s, patch_size = patch_size, steps = steps)
+        
+        # The dataset now has shape: (ny, nx, py, px). ny, nx are # of patches, and py, px is patch_shape.
+        # Reshape this dataset into (n, py, px) where n = ny*nx. Trust numpy to preserve order.
+        dataset_shape = s.shape
+        s = s.reshape((-1,) + patch_size)
+        
+        # Predict using the model.
+        s = self.model.predict(s[...,np.newaxis])
+        s = s[...,0]
+        
+        s = np.round(s).astype(np.uint8)
+        
+        f = [measurement(s[idx], **kwargs) for idx in range(len(s))]
+        f = np.asarray(f)
+        # the shape of f now is n_imgs, n_features
+        nimgs, nfeatures = f.shape
+        
+        s = np.ones((nimgs, patch_size[0], patch_size[1], nfeatures))
+        
+        for ife in range(nfeatures):
+            s[...,ife] = [s[ii,...,ife]*f[ii,ife] for ii in range(len(s))]
+        s = np.asarray(s)
+        
+        
+        
+        F_img = []
+        for ife in range(nfeatures):
+            # Now, reshape the data back...
+            f_img = s[...,ife].reshape(dataset_shape)
+            # Reconstruct from patches...
+            f_img = PM.recon_patches(f_img, img_shape = downres_shape, steps = steps)    
+            # Finally, resize the images to the original shape of slices
+            f_img = cv2.resize(f_img, (orig_shape[1], orig_shape[0]))            
+            F_img.append(f_img)
+        
+        
+        return np.asarray(F_img)
+        
 
 
 
