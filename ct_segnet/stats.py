@@ -15,7 +15,7 @@ from ct_segnet.data_utils.data_io import Parallelize
 import matplotlib.pyplot as plt
 
 
-def calc_SNR(img, seg_img):
+def calc_SNR(img, seg_img, labels = (0,1), mask_ratio = None):
     """
     SNR =  1     /  s*sqrt(std0^^2 + std1^^2)  
     where s = 1 / (mu1 - mu0)  
@@ -24,11 +24,17 @@ def calc_SNR(img, seg_img):
 
     Parameters
     ----------
-    img : np.array
-        raw input image (2D or 3D)
+    img : np.array  
+        raw input image (2D or 3D)  
     
-    seg_img : np.array
-        segmentation map (2D or 3D)
+    seg_img : np.array  
+        segmentation map (2D or 3D)  
+        
+    labels : tuple  
+        an ordered list of two label values in the image. The high value is interpreted as the signal and low value is the background.  
+        
+    mask_ratio : float or None
+        If not None, a float in (0,1). The data are cropped such that the voxels / pixels outside the circular mask are ignored.  
 
     Returns
     -------
@@ -36,8 +42,24 @@ def calc_SNR(img, seg_img):
         SNR of img w.r.t seg_img  
 
     """
-    pix_1 = img[seg_img == 1]
-    pix_0 = img[seg_img == 0]
+    
+    # handle circular mask  
+    if mask_ratio is not None:
+        crop_val = int(img.shape[-1]*0.5*(1 - mask_ratio/np.sqrt(2)))
+        crop_slice = slice(crop_val, -crop_val)    
+
+        if img.ndim == 2: # 2D image
+            img = img[crop_slice, crop_slice]
+            seg_img = seg_img[crop_slice, crop_slice]
+        elif img.ndim == 3: # 3D image
+            vcrop = int(img.shape[0]*(1-mask_ratio))
+            vcrop_slice = slice(vcrop, -vcrop)
+            img = img[vcrop_slice, crop_slice, crop_slice]
+            seg_img = seg_img[vcrop_slice, crop_slice, crop_slice]
+            
+        
+    pix_1 = img[seg_img == labels[1]]
+    pix_0 = img[seg_img == labels[0]]
     mu1 = np.mean(pix_1)
     mu0 = np.mean(pix_0)
     s = abs(1/(mu1 - mu0))
@@ -46,8 +68,6 @@ def calc_SNR(img, seg_img):
     std = np.sqrt(0.5*(std1**2 + std0**2))
     std = s*std
     return 1/std
-
-
 
 
 def ROC(thresh, true_img = None, seg_img = None):
