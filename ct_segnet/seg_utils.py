@@ -47,7 +47,14 @@ class Segmenter():
         (optional) just a name for the model  
     
     """
-    def __init__(self, model_filename = None, model = None, model_name = "unknown"):
+    def __init__(self, model_filename = None, model = None, model_name = "unknown", weight_file_name = None):
+        
+        # if you get serialization errors using load_model
+        if weight_file_name is not None:
+            self.model = model
+            self.model.load_weights(weight_file_name) # note that weights can be loaded from a full save, not only from save_weights file
+            return
+        
         if model is not None:
             self.model = model
             self.model_name = model_name
