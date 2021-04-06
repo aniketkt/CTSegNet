@@ -45,9 +45,21 @@ class Segmenter():
     
     model_name : str  
         (optional) just a name for the model  
+        
+    GPU_mem_limit : float  
+        max limit of GPU memory to use
     
     """
-    def __init__(self, model_filename = None, model = None, model_name = "unknown", weight_file_name = None):
+    def __init__(self, model_filename = None, model = None, model_name = "unknown", weight_file_name = None, GPU_mem_limit = 16.0):
+        
+        gpus = tf.config.experimental.list_physical_devices('GPU')
+        if gpus:
+          try:
+            tf.config.experimental.set_virtual_device_configuration(gpus[0], [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=GPU_mem_limit*1000.0)])
+          except RuntimeError as e:
+            print(e)        
+        
+        
         
         # if you get serialization errors using load_model
         if weight_file_name is not None:
