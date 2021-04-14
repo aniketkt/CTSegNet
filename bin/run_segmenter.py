@@ -69,7 +69,9 @@ def main(args):
 
 
     data_io.show_header()
+    
     if not os.path.exists(args.seg_path): os.makedirs(args.seg_path)
+    # start run_seg
     if args.run_seg:
         
         # Understand input data format
@@ -151,7 +153,9 @@ def main(args):
             del segfile_tag
             del rotation
             del ch
-        
+    # end run_seg
+    
+    # start run_ensemble
     if args.run_ensemble:
         print("\nStarting ensemble mode ...\n")
 
@@ -225,7 +229,9 @@ def main(args):
                     os.remove(seg_fname)
                 else:
                     rmtree(seg_fname)
+    # end run_ensemble
     
+    # start morpho_filt
     if args.morpho_filt:
         print("\nApplying morphological operations on ensemble vote...")
         
@@ -243,7 +249,9 @@ def main(args):
                             ops = args.ops, \
                             crops = args.crops, \
                             invert_mask = args.invert_mask)
+        vote_dfile.create_new(overwrite=True)
         vote_dfile.write_full(vol)
+    # end morpho_filt
     
     return
 

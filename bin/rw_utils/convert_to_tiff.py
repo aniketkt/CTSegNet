@@ -23,43 +23,22 @@ mem_thres = 0.0
 def main(args):
     data_io.show_header()
     # Understand input data format
-    if os.path.isdir(args.input_fname):
-        tiff_input = True
-        if args.dataset_name == "": args.dataset_name = "data"
-    elif args.input_fname.split('.')[-1] in ("hdf5", "h5"):
+    if args.input_fname.split('.')[-1] in ("hdf5", "h5"):
         tiff_input = False
-        if args.dataset_name == "": raise ArgumentTypeError("dataset-name required for hdf5")
     else:
-        raise ArgumentTypeError("input file type not recognized. must be tiff folder or hdf5 file")
+        raise ArgumentTypeError("input file type not recognized. must be hdf5 file")
     input_fname = args.input_fname
     
-    # if output_fpath is not provided, then get parent path to input file
+    # set up output file name / path / chunks parameter
     if args.output_fpath == "":
         args.output_fpath = os.path.split(args.input_fname)[0]
-        
-    # 
     
-    if args.output_fname == "converted.hdf5":
-        output_fname = args.input_fname.split('.')[0] + '.hdf5'
+    if args.output_fname == "converted_tiff":
+        output_fname = args.input_fname.split('.')[0]
     
     else:
-        output_fname = os.path.join(args.output_fpath, args.output_fname.split('.')[0] + ".hdf5")
+        output_fname = os.path.join(args.output_fpath, args.output_fname)
     
-    # chunks parameter
-    if type(args.chunk_param) in (int, float):
-        chunk_size = args.chunk_param/1e3 # convert to GB
-        chunk_shape = None
-    elif type(args.chunk_param) == tuple:
-        chunk_shape = args.chunk_param
-        chunk_size = None
-    else:
-        chunk_shape = None
-        chunk_size = None
-    chunked_slice_size = args.chunked_slice_size
-    
-#     print("Type chunk_param" + str(type(args.chunk_param)))
-#     print("Type chunked_slice_size" + str(type(args.chunked_slice_size)))
-
 #     print("Overwrite OK is %s"%args.overwrite_OK)
 #     print("Stats only is %s"%args.stats_only)
 #     print("Delete is %s"%args.delete)
@@ -78,17 +57,11 @@ def main(args):
     w_shape = r_dfile.d_shape # future implementation must allow resampling dataset
     w_dtype = r_dfile.d_type # future implementation must allow changing dtype (with renormalization)
     
-    w_dfile = data_io.DataFile(output_fname, tiff = False, \
-                               data_tag = args.dataset_name, \
+    w_dfile = data_io.DataFile(output_fname, tiff = True, \
                                VERBOSITY = args.verbosity, \
-                               d_shape = w_shape, d_type = w_dtype, \
-                               chunk_shape = chunk_shape, \
-                               chunk_size = chunk_size, \
-                               chunked_slice_size = chunked_slice_size)
+                               d_shape = w_shape, d_type = w_dtype)
     
-    print("\nChunking scheme estimated as: %s"%str(w_dfile.chunk_shape))
-
-    str_prompt = "\nHDF5 file will be saved to the following location.\n%s"%output_fname
+    str_prompt = "\ntiff file will be saved to the following location.\n%s"%output_fname
     if not args.yes:
         input(str_prompt + "\nPress any key to continue")
     else:
@@ -103,7 +76,7 @@ def main(args):
     while slice_start < r_dfile.d_shape[0]:
         dd, s = r_dfile.read_chunk(axis = 0, slice_start = slice_start, \
                                    max_GB = mem_thres, \
-                                   chunk_shape = w_dfile.chunk_shape)
+                                   chunk_shape = r_dfile.chunk_shape)
         w_dfile.write_chunk(dd, axis = 0, s = s)
         slice_start = s.stop
         pbar.update(s.stop - s.start)
@@ -132,7 +105,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', "--stats_only", required = False, action = "store_true", default = False, help = "show stats only")
     parser.add_argument('-d', "--delete", required = False, action = "store_true", default = False, help = "delete input file")
     parser.add_argument('-o', "--output-fpath", required = False, default = "", type = str, help = "Parent folder path for saving output. (optional) If not provided, file will be written to same parent folder as input file.")
-    parser.add_argument('-n', "--output-fname", required = False, default = "converted.hdf5", type = str, help = "Name of output hdf5 file.")
+    parser.add_argument('-n', "--output-fname", required = False, default = "converted_tiff", type = str, help = "Name of output tiff file.")
     
     parser.add_argument('-x', "--dataset-name", required = False, type = str, default = "", help = "Dataset name for hdf5; required if input is hdf5 file")
     parser.add_argument('-v', "--verbosity", required = False, type = int, default = 0, help = "read / write verbosity; 0 - silent, 1 - important stuff, 2 - print everything")

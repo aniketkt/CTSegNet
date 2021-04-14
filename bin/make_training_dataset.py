@@ -122,8 +122,8 @@ def main(args):
     # Create datafile objects for writing stuff, and get file paths for it also
     w_dfile_seg = data_io.DataFile(output_fname, data_tag = 'Y', tiff = False, chunked_slice_size = None, d_shape = write_dshape, d_type = np.uint8)
     w_dfile_recon = data_io.DataFile(output_fname, data_tag = 'X', tiff = False, chunked_slice_size = None, d_shape = write_dshape, d_type = np.float32)
-    w_dfile_seg.create_new(overwrite = False)
-    w_dfile_recon.create_new(overwrite = False)
+    w_dfile_seg.create_new(overwrite = args.overwrite_OK)
+    w_dfile_recon.create_new(overwrite = args.overwrite_OK)
     
 
     # Work on seg data
@@ -185,7 +185,8 @@ if __name__ == "__main__":
     parser.add('--crops', type = crops_type, action = 'append')    
     parser.add('--skip_fac', type = int, required = False, default = 1, help = "reduce number of slices drawn along each axis by this much (> 1)")
     parser.add('--nprocs', required = False, type = int, default = 4, metavar = 'integer', help = 'use these many processors on each subset of chunk read into memory')
-    
+    parser.add_argument('-w', "--overwrite_OK", required = False, action = "store_true", default = False, help = "if output file exists, overwrite")
+#   
     args = parser.parse_args()
 
 #     print(parser.format_values())
