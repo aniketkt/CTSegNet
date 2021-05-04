@@ -37,13 +37,11 @@ def main(args):
     if args.output_fpath == "":
         args.output_fpath = os.path.split(args.input_fname)[0]
         
-    # 
-    
+    # if output_fname is not provided, then use base fname of input file
     if args.output_fname == "converted.hdf5":
-        output_fname = args.input_fname.split('.')[0] + '.hdf5'
+        args.output_fname = os.path.split(args.input_fname)[-1]
     
-    else:
-        output_fname = os.path.join(args.output_fpath, args.output_fname.split('.')[0] + ".hdf5")
+    output_fname = os.path.join(args.output_fpath, args.output_fname.split('.')[0] + ".hdf5")
     
     # chunks parameter
     if type(args.chunk_param) in (int, float):

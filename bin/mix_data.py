@@ -36,8 +36,12 @@ def main(args):
         y_train = ds_Y.read_full()
         x_train = ds_X.read_full()
         
-        x_train, y_train = remove_blanks(x_train, y_train, cutoff = 0.2)
-        
+
+        if not args.retain_blanks:
+            print("before: %i"%len(x_train))
+            x_train, y_train = remove_blanks(x_train, y_train, cutoff = 0.2)
+            print("after remove blanks: %i"%len(x_train))
+
         idxs =  np.random.choice(len(x_train), \
                                  size = row["sample_size"], \
                                  replace=False)
@@ -60,7 +64,7 @@ def main(args):
                                 d_shape = X.shape, \
                                 d_type = np.float32, \
                                 VERBOSITY = 0)
-    dsX.create_new(overwrite = True)
+    dsX.create_new(overwrite = args.overwrite_OK)
     dsY = DataFile(os.path.join(data_path, args.out_fname.split('.')[0] + '.hdf5'), \
                                 data_tag = 'Y', \
                                 d_shape = Y.shape, \
@@ -83,7 +87,9 @@ if __name__ == "__main__":
     parser.add_argument('-p', '--data_path', required = True, type = str, help = 'path to parent folder containing all data sets')
     parser.add_argument('-f', '--csv_path', required = True, type = str, help = 'path to csv file listing data sets and respective sample size')
     parser.add_argument('-o', '--out_fname', required = True, type = str, help = 'output hdf5 filename')
-    
+    parser.add_argument('-b', '--retain_blanks', required = False, action = 'store_true', default = False, help = 'if true, do not remove blank images from training data')    
+    parser.add_argument('-w', "--overwrite_OK", required = False, action = "store_true", default = False, help = "if output file exists, overwrite")
+#
     args = parser.parse_args()
     
     time_script_start = time.time()

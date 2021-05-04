@@ -16,7 +16,7 @@ setup(
     # Needed to actually package something
     packages= ['ct_segnet', 'ct_segnet.data_utils', 'ct_segnet.model_utils'],
     # Needed for dependencies
-    install_requires=['numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn','ConfigArgParse', 'tqdm', 'ipython', 'h5py'],
+    install_requires=['numpy', 'scikit-image', 'matplotlib', 'opencv-python', 'pandas', 'tifffile', 'scipy','scikit-learn','ConfigArgParse', 'tqdm', 'ipython', 'h5py==2.10'],
     version=open('VERSION').read().strip(),
     license='BSD',
     description='Automated 3D segmentation powered by 2D convolutional neural networks',

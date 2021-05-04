@@ -109,6 +109,15 @@ def main(args):
             
             from preprocessor import preprocessor
             dd = preprocessor(dd)
+
+        if args.remove_ring:
+            from tomopy import remove_ring
+            print("removing rings")
+            t_ring0 = time.time()
+            dd = remove_ring(dd)  
+            print("took %.2f minutes"%((time.time() - t_ring0)/60.0))
+        from ct_segnet.improc import contrast_adjust
+        dd = contrast_adjust(dd, mode = args.contrast_mode, s = args.contrast_s, binning = args.contrast_binning)
         
         for idx, row in df_params.iterrows(): # iterate over masks
 
@@ -268,7 +277,6 @@ if __name__ == "__main__":
     parser.add('-m', '--model_name', required = True, type = str, help = 'model name')
     parser.add('-v', '--vote_maskname', required = False, type = str, default = 'VOTED', help = 'name of final (voted) mask')
     parser.add('--remove_masks', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to delete all intermediate masks')
-    parser.add('--preprocess', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to preprocess data (tries to import preprocessor from preprocessor.py)')
     parser.add('--run_ensemble', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to run ensemble vote on all masks')
     parser.add('--run_seg', required = False, type = str_to_bool, default = True, metavar = 'bool', help = 'True to generate intermediate segmentation maps. If False, only voter will run')
     parser.add('--stats_only', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'if True, program will exit after showing dataset stats')
@@ -294,6 +302,12 @@ if __name__ == "__main__":
     parser.add('--invert_mask', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to invert mask before applying ops')
     parser.add('--morpho_filt', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to apply morphological ops')
     
+    # image preprocessing
+    parser.add('--preprocess', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'True to preprocess data (tries to import preprocessor from preprocessor.py)')
+    parser.add('--contrast_mode', required = False, type = str, default = 'none', help = 'options: {auto, manual, none} if auto, then slow and shigh are quantile of image data to saturate; if manual, then they are actual intensity values to clip')
+    parser.add('--contrast_s', required = False, type = crops_type, default = '0.001:0.001', help = 'low:high values for contrast')
+    parser.add('--contrast_binning', required = False, type = int, default = 2, help = 'speed up by binning of volume before calculating histogram')
+    parser.add('--remove_ring', required = False, type = str_to_bool, default = False, metavar = 'bool', help = 'apply tomopy ring removal before segmentation')
     args = parser.parse_args()
 
 #     print(parser.format_values())
